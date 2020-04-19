@@ -53,7 +53,14 @@ def test(dataset, model_config, dataloader_config, train_config, test_config):
     print('Test Accuracy.............: {:.2f}'.format(test_acc))
 
 
-    
+def load(dataset, model_config, dataloader_config, train_config, test_config):
+    print('Building Model...')
+    model = Model(model_config, dataloader_config, dataset)
+    trainer = Trainer(model, dataloader_config, train_config)
+    print(trainer)
+
+
 if __name__ == '__main__':
+    load(dataset, model_config, dataloader_config, train_config, test_config)
     # train(dataset, model_config, dataloader_config, train_config)
-    test(dataset, model_config, dataloader_config, train_config, test_config)
+    # test(dataset, model_config, dataloader_config, train_config, test_config)

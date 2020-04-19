@@ -12,7 +12,7 @@ dataset = 'cifar100' # 'cifar10' or 'cifar100'
 # See models/ to check which net are availables
 
 model_config = {
-    'net': 'wide_resnet_28_10',
+    'net': 'resnet20',
     'mode': 'baseline', # can be 'baseline' or 'boosted'
     'activation': 'ReLU', # can be 'ReLU' or 'Mish'
     # baseline means SGD + ROP, 'boosted' means RangerLars + DelayedCosineAnnealingLR
