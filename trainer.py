@@ -3,7 +3,7 @@ import torch
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 from utils.early_stopping import EarlyStopping
-from utils.decorators import *
+from utils.decorators import timed
 from utils.score.score import score2019
 
 from dataloader import get_dataloaders
@@ -34,12 +34,13 @@ class Trainer():
         title = 'Training settings  :' + '\n' + '\n'
         dataset     = 'Dataset...................:  ' + self.model.summary['dataset'] + '\n'
         net         = 'Net.......................:  ' + self.model.summary['net'] + '\n' 
+        num_params  = 'Number of parameters......:  {:.2e}'.format(self.model.summary['num_params']) + '\n'
         optimizer   = 'Optimizer.................:  ' + self.model.summary['optimizer'] + '\n'
         scheduler   = 'Learning Rate Scheduler...:  ' + self.model.summary['scheduler'] + '\n'
         nb_epochs   = 'Number of epochs..........:  ' + str(self.config['nb_epochs']) + '\n'
         use_bc      = 'Use Binary Connect........:  ' + str(self.use_binary_connect) + '\n'
         use_pruning = 'Use Soft Pruning..........:  ' + str(self.use_pruning) + '\n'
-        model_summary = dataset + net + optimizer + scheduler
+        model_summary = dataset + net + num_params + optimizer + scheduler
         train_summary = nb_epochs + use_bc + use_pruning
         return (80*'_' + '\n' + title + model_summary + train_summary + 80*'_')
         

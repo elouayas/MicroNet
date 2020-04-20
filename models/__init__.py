@@ -1,3 +1,4 @@
+from .efficientnet_cifar import *
 from .efficientnet import *
 from .resnet import *
 from .resnet_quantized import *

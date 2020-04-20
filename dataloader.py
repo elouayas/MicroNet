@@ -2,6 +2,8 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10,CIFAR100
 from torch.utils.data import DataLoader
 
+from PIL import Image
+
 from utils.augment.autoaugment import CIFAR10Policy
 from utils.augment.cutout import Cutout
 
@@ -17,16 +19,19 @@ def get_transforms(dataloader_config):
         mean, std = (0.5071, 0.4867, 0.4408), (0.2675, 0.2565, 0.2761)
     normalize = [transforms.Normalize(mean, std)]
     to_tensor = [transforms.ToTensor()]
+    if dataloader_config['resize']:
+        resize = [transforms.Resize((224,224), interpolation=Image.BICUBIC)]
+    else:
+        resize = []
     aug = [transforms.RandomCrop(32, padding=4), 
            transforms.RandomHorizontalFlip()]
     if dataloader_config['data_aug']:
         aug += [CIFAR10Policy()]
-    aug += to_tensor
     if dataloader_config['use_cutout']:
         aug += [Cutout(n_holes=dataloader_config['n_holes'],
                        length =dataloader_config['length'])]
-    transform_train = transforms.Compose(aug + normalize)
-    transform_test  = transforms.Compose(to_tensor + normalize)
+    transform_train = transforms.Compose(aug + resize + to_tensor + normalize)
+    transform_test  = transforms.Compose(resize + to_tensor + normalize)
     return transform_train, transform_test
 
 
@@ -44,13 +49,13 @@ def get_datasets(dataloader_config, transform_train, transform_test):
                            transform=transform_test)
     else:
         trainset = CIFAR100(dataloader_config['rootdir'],
-                           download=dataloader_config['download'],
-                           train=True,
-                           transform=transform_train)
+                            download=dataloader_config['download'],
+                            train=True,
+                            transform=transform_train)
         testset  = CIFAR100(dataloader_config['rootdir'],
-                           download=dataloader_config['download'],
-                           train=False,
-                           transform=transform_test)
+                            download=dataloader_config['download'],
+                            train=False,
+                            transform=transform_test)
     return trainset, testset
 
 
