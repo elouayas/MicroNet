@@ -57,7 +57,12 @@ class Model():
             elif model_config['net']=='pyramidnet200': 
                 net = PyramidNet('cifar100',200,240,100,bottleneck=True)
             elif model_config['net']=='densenet100':
-                net = densenet_cifar()                
+                net = densenet_cifar()
+            elif model_config['net']=='densenet_100_micronet':
+                net= densenet_micronet(depth = 100, num_classes = 100, growthRate = 12, compressionRate = 2)
+            elif model_config['net']=='densenet_172_micronet':
+                net = densenet_micronet(depth = 172, num_classes = 100, growthRate = 30, compressionRate = 2)
+                
             else:
                 net = ResNet(model_config['net'], num_classes=num_classes)
         return net
