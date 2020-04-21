@@ -9,7 +9,7 @@
 import torch
 from model import Model
 from trainer import Trainer
-from config import dataset, model_config, dataloader_config, train_config
+from config import dataset, model_config, dataloader_config, train_config,teacher_config
 
 # +---------------------------------------------------------------------------------------+ #
 # |                                                                                       | #
@@ -22,7 +22,7 @@ from config import dataset, model_config, dataloader_config, train_config
 def train():
     print('Building Model...')
     model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config)
+    trainer = Trainer(model, dataloader_config, train_config,teacher_config)
     print(trainer)
     try:
         trainer.run()

@@ -52,6 +52,12 @@ class Model():
                 net = EfficientNetBuilder(model_config['net'], num_classes=num_classes)
             elif model_config['net']=='RCNN':
                 net = rcnn_32()
+            elif model_config['net']=='pyramidnet272':
+                net = PyramidNet_fastaugment(dataset=dataset,depth=272,alpha=200,num_classes=num_classes, bottleneck=True)
+            elif model_config['net']=='pyramidnet200': 
+                net = PyramidNet('cifar100',200,240,100,bottleneck=True)
+            elif model_config['net']=='densenet100':
+                net = densenet_cifar()                
             else:
                 net = ResNet(model_config['net'], num_classes=num_classes)
         return net

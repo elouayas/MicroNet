@@ -10,12 +10,12 @@ dataset = 'cifar100' # 'cifar10' or 'cifar100'
 ############################################ MODEL ############################################
 
 # net can be one of:
-# resnet20, resnet32, resnet44, resnet56, resnet110, resnet1202, efficientnetb0, wide_resnet_28_10
+# resnet20, resnet32, resnet44, resnet56, resnet110, resnet1202, efficientnetb0, wide_resnet_28_10,pyramidnet272
 # Modify utils/init_net.py to add new net
 # See models/ to check which net are availables
 
 model_config = {
-    'net': 'efficientnet-b0',
+    'net': 'densenet100',
     'mode': 'baseline', # can be 'baseline' or 'boosted'
     'activation': 'ReLU', # can be 'ReLU' or 'Mish'
     # baseline means SGD + ROP, 'boosted' means RangerLars + DelayedCosineAnnealingLR
@@ -40,13 +40,14 @@ model_config = {
 dataloader_config = {
     'rootdir': './data/',
     'download': True,
-    'batch_size': 64,
+    'batch_size': 32,
     'nb_workers': 6,
     'data_aug': False,
     'use_cutout': False,
     'n_holes': 1,
     'length': 16,
-    'resize': True
+    'resize': False,
+    'use_fastaugm': True
 }
 
 
@@ -81,5 +82,29 @@ train_config = {
     'delta': 0.01, # value of loss decrease to cancel early stopping
     'use_binary_connect': False,
     'pruning': pruning_config,
-    'verbose': True
+    'verbose': True,
+    'distillation':True
 }
+
+
+############################################ Teacher ############################################
+
+teacher_config  = {
+    'teacher_path':'model_best.pth.tar',
+    'lambda_hkd':1,
+    'lambda_gkd':0,
+    'lambda_rkd':0,
+    'pool3_only':False,
+    'temp':4,
+    'power':1,
+    'k':128,
+    'intra_only':False,
+    'inter_only':False,
+    'net': 'PyramidNet200',
+}
+
+
+### CHANGER TEACHER CONFIG, POUR UTILISER LA CLASSE MODEL DANS LE TRAINER
+#'teacher_path':'model_best.pth.tar', pyram200
+#'cifar100_pyramid272_top1_11.74.pth' pyram272
+    

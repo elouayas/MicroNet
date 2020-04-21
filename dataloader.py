@@ -7,8 +7,12 @@ from PIL import Image
 from utils.augment.autoaugment import CIFAR10Policy
 from utils.augment.cutout import Cutout
 
+
 from config import dataset
 
+#from utils.FastAutoAugment.data import get_dataloaders 
+from utils.fastaugmentations import *
+from utils.archive import arsaug_policy, autoaug_policy, autoaug_paper_cifar10, fa_reduced_cifar10
 
 ###########################################  TRANSFORMS  ###########################################
 
@@ -32,6 +36,10 @@ def get_transforms(dataloader_config):
                        length =dataloader_config['length'])]
     transform_train = transforms.Compose(aug + resize + to_tensor + normalize)
     transform_test  = transforms.Compose(resize + to_tensor + normalize)
+    
+    if dataloader_config['use_fastaugm']:
+        transform_train.transforms.insert(0, Augmentation(fa_reduced_cifar10()))
+
     return transform_train, transform_test
 
 
@@ -72,9 +80,24 @@ def get_dataloaders(dataloader_config):
                              batch_size=dataloader_config['batch_size'], 
                              shuffle=False,
                              num_workers=dataloader_config['nb_workers'],)
+    
+    
     return trainloader, testloader
 
 
 
 
+### FAST AUTO
+class Augmentation(object):
+    def __init__(self, policies):
+        self.policies = policies
+
+    def __call__(self, img):
+        for _ in range(1):
+            policy = random.choice(self.policies)
+            for name, pr, level in policy:
+                if random.random() > pr:
+                    continue
+                img = apply_augment(img, name, level)
+        return img
 
