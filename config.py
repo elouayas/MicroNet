@@ -15,7 +15,7 @@ dataset = 'cifar100' # 'cifar10' or 'cifar100'
 # See models/ to check which net are availables
 
 model_config = {
-    'net': 'densenet100',
+    'net': 'densenet_100_micronet',
     'mode': 'baseline', # can be 'baseline' or 'boosted'
     'activation': 'ReLU', # can be 'ReLU' or 'Mish'
     # baseline means SGD + ROP, 'boosted' means RangerLars + DelayedCosineAnnealingLR
@@ -40,14 +40,14 @@ model_config = {
 dataloader_config = {
     'rootdir': './data/',
     'download': True,
-    'batch_size': 32,
+    'batch_size': 128,
     'nb_workers': 6,
     'data_aug': False,
     'use_cutout': False,
     'n_holes': 1,
     'length': 16,
     'resize': False,
-    'use_fastaugm': True
+    'use_fastaugm': False
 }
 
 
@@ -91,7 +91,7 @@ train_config = {
 
 teacher_config  = {
     'teacher_path':'model_best.pth.tar',
-    'lambda_hkd':1,
+    'lambda_hkd':10,
     'lambda_gkd':0,
     'lambda_rkd':0,
     'pool3_only':False,
