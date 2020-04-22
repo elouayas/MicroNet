@@ -1,10 +1,9 @@
-"""
-+---------------------------------------------------------------------------------------+
-|                                                                                       |
-|                                         MAIN                                          |
-|                                                                                       |
-+---------------------------------------------------------------------------------------+
-"""
+# +---------------------------------------------------------------------------------------+ #
+# |                                                                                       | #
+# |                                         MAIN                                          | #
+# |                                                                                       | #
+# +---------------------------------------------------------------------------------------+ #
+
 
 import torch
 from model import Model
@@ -18,24 +17,27 @@ import config as cfg
 # |                                                                                       | #
 # +---------------------------------------------------------------------------------------+ #
 
-
-def train():
+def build():
     print('Building Model...')
     model = Model()
     trainer = Trainer(model)
     print(trainer)
+    return model, trainer
+
+
+def load_trained(path):
+    model, trainer = build()
+    model = torch.load(path)
+    return model, trainer
+
+
+def train():
+    model, trainer = build()
     try:
         trainer.run()
     except KeyboardInterrupt:
-        net = model.net.summary['net']
-        optimizer =  model.net.summary['optimizer']
-        scheduler = model.net.summary['scheduler']
-        basename = net + '_' + optimizer + '_' + scheduler + '.pt'
-        if cfg.dataloader['pretrained']:
-            filename = 'interrupted_' + 'pretrained_' + basename
-        else:
-            filename = 'interrupted_' + basename
-        path = train_config['checkpoints_path'] + filename
+        prefix = 'INTERRUPTED_EPOCH_' + str(trainer.state['epoch']) + '_'
+        checkpoints_filename = prefix + cfg.get_experiment_name() + '.pt'
         torch.save(model.net.state_dict(), path)
         print()
         print(80*'_')
@@ -43,11 +45,8 @@ def train():
         print('Current State saved.')
 
 
-def test():
-    print('Building Model...')
-    model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config)
-    model = torch.load('./checkpoints/wide-resnet-28x10.t7')
+def test(path):
+    model, trainer = load_trained(path)
     model.eval()
     test_loss, test_acc = trainer.test()
     print(80*'_')
@@ -56,14 +55,8 @@ def test():
     print(80*'_')
 
 
-def load():
-    print('Building Model...')
-    model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config)
-    print(trainer)
-
 
 if __name__ == '__main__':
-    #load()
-    train()
-    # test()
+    build()
+    #train()
+    #test()

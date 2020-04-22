@@ -7,8 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from utils.shakedrop import ShakeDrop
-
+from utils.layers.shakedrop import ShakeDrop
 
 class ShakeBasicBlock(nn.Module):
 

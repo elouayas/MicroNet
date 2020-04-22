@@ -94,11 +94,7 @@ Args:
 
 model = {
     'net': 'densenet_100_micronet',
-    'mode': 'baseline', # can be 'baseline' or 'boosted'
-    'activation': 'ReLU', # can be 'ReLU' or 'Mish'
-    # baseline means SGD + ROP, 'boosted' means RangerLars + DelayedCosineAnnealingLR
-    # if lalbe_smoothing is True
-    # use utils.LabelSmoothingCrossEntropy instead of vanilla CrossEntropy.
+    'mode': 'basic',
     'label_smoothing': False,
     'smoothing': 0.1,
     'reduction': 'mean', 
@@ -160,7 +156,8 @@ Args:
 dataloader = {
     'rootdir': './data/',
     'download': True,
-    'batch_size': 128,
+    'train_batch_size': 128,
+    'test_batch_size': 64,
     'nb_workers': 6,
     'data_aug': False,
     'fast_aug': False,
@@ -319,7 +316,7 @@ This should never be modified as it is generated with regards to all other confi
 
 log = {
     'tensorboard_path': './runs/'+dataset+'/'+get_experiment_name(),
-    'checkpoints_path': './checkpoints/'+dataset+'/'+get_experiment_name()
+    'checkpoints_path': './checkpoints/'+dataset+'/'+get_experiment_name()+'.pt'
 }
 
 

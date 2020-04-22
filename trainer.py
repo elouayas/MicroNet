@@ -5,14 +5,15 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 
-from utils.early_stopping import EarlyStopping
+
+from utils.tweak import EarlyStopping
 from utils.decorators import timed
-from utils.score.score import score2019
-from utils.distillation import *
+from utils.score import score2019
+from utils.tweak.distillation import *
 
 from dataloader import get_dataloaders
 from mask import Mask
-from models import *
+from utils.models import *
 
 import config as cfg
 
@@ -21,7 +22,7 @@ class Trainer():
     def __init__(self, model):
         self.model = model # model must be an instance of the Model class
         self.trainloader, self.testloader = get_dataloaders()
-        self.config = cfg.train_config
+        self.config = cfg.train
         if self.config['distillation']:
             self.teacher_config = cfg.teacher
         self.writer = torch.utils.tensorboard.SummaryWriter(log_dir=cfg.log['tensorboard_path'])
@@ -52,7 +53,7 @@ class Trainer():
                                        delta = self.config['delta'], 
                                        verbose=self.config['verbose'])
         early_stopping.set_checkpoints(self.model.summary, 
-                                       self.config['checkpoints_path'])
+                                       cfg.log['checkpoints_path'])
         return early_stopping
     
     
