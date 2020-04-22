@@ -2,13 +2,15 @@ import torch
 import numpy as np
 from scipy.optimize import fsolve # use to determine asymptotic rate per epoch
 
+import config as cfg
+
 
 class Mask(object):
 
-    def __init__(self, net, pruning_config, nb_epochs):
+    def __init__(self, net, nb_epochs):
         self.device = device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.net = net.to(self.device)
-        self.config, self.nb_epochs = pruning_config, nb_epochs
+        self.config, self.nb_epochs = cfg.config, nb_epochs
         self.net_size, self.net_length = self._init_length() # size (eg (64,64,3,3)) and length (eg 64*64*3*3) per layer
         self.compress_rate = {} # compress rate per layer
         self.mat = {}

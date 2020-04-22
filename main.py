@@ -9,7 +9,7 @@
 import torch
 from model import Model
 from trainer import Trainer
-from config import dataset, model_config, dataloader_config, train_config,teacher_config
+import config as cfg
 
 # +---------------------------------------------------------------------------------------+ #
 # |                                                                                       | #
@@ -21,8 +21,8 @@ from config import dataset, model_config, dataloader_config, train_config,teache
 
 def train():
     print('Building Model...')
-    model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config,teacher_config)
+    model = Model()
+    trainer = Trainer(model)
     print(trainer)
     try:
         trainer.run()
@@ -31,7 +31,7 @@ def train():
         optimizer =  model.net.summary['optimizer']
         scheduler = model.net.summary['scheduler']
         basename = net + '_' + optimizer + '_' + scheduler + '.pt'
-        if dataloader_config['pretrained']:
+        if cfg.dataloader['pretrained']:
             filename = 'interrupted_' + 'pretrained_' + basename
         else:
             filename = 'interrupted_' + basename

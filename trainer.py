@@ -1,40 +1,35 @@
 from tqdm import tqdm
+
 import torch
 import torch.nn.functional as F
-
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
+
 from utils.early_stopping import EarlyStopping
 from utils.decorators import timed
 from utils.score.score import score2019
-
 from utils.distillation import *
 
 from dataloader import get_dataloaders
 from mask import Mask
-import torch.nn.functional as F
 from models import *
+
+import config as cfg
 
 class Trainer():
      
-    def __init__(self, model, dataloader_config, train_config,teacher_config):
+    def __init__(self, model):
         self.model = model # model must be an instance of the Model class
-        self.trainloader, self.testloader = self._init_dataloaders(dataloader_config)
-        self.config = train_config
+        self.trainloader, self.testloader = get_dataloaders()
+        self.config = cfg.train_config
         if self.config['distillation']:
-            self.teacher_config=teacher_config
-        self.writer = self._init_writer()
+            self.teacher_config = cfg.teacher
+        self.writer = torch.utils.tensorboard.SummaryWriter(log_dir=cfg.log['tensorboard_path'])
         self.early_stopping = self._init_early_stopping()
         self.use_binary_connect = self._init_binary_connect()
         self.use_pruning = self._init_pruning()
-        self.state = {'train_loss': 0, 
-                      'train_acc': 0, 
-                      'test_loss': 0, 
-                      'test_acc': 0, 
-                      'best_acc': 0,
-                      'epoch': 0,
-                      'score_param': 1,
-                      'score_op': 1}
+        self.state = {'train_loss': 0, 'train_acc': 0, 'test_loss': 0, 'test_acc': 0, 
+                      'best_acc': 0, 'epoch': 0, 'score_param': 1,'score_op': 1}
         
         
     def __str__(self): 
@@ -50,18 +45,8 @@ class Trainer():
         model_summary = dataset + net + num_params + optimizer + scheduler
         train_summary = nb_epochs + use_bc + use_pruning
         return (80*'_' + '\n' + title + model_summary + train_summary + 80*'_')
-        
-    
-    def _init_dataloaders(self, dataloader_config):
-        return get_dataloaders(dataloader_config)
-    
-    
-    def _init_writer(self):
-        path = self.config['tensorboard_path'] + self.model.summary['net'] 
-        writer = torch.utils.tensorboard.SummaryWriter(log_dir = path)
-        return writer
-    
-    
+         
+
     def _init_early_stopping(self):
         early_stopping = EarlyStopping(patience=self.config['patience'], 
                                        delta = self.config['delta'], 
