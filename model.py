@@ -33,11 +33,11 @@ class Model():
     def __init__(self):
         self.device     = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         self.mode       = cfg.model['mode']
-        self.summary    = {} # will contain dataset, net, num_params, optimizer, scheduler
         self.net        = self._init_net()
         self.criterion  = self._init_criterion()
         self.optimizer  = self._init_optimizer()
         self.scheduler  = self._init_scheduler()
+        self.num_params = self.get_num_params(self.net)
 
     def get_num_params(self, net, display_all_modules=False):
         total_num_params = 0
@@ -55,9 +55,6 @@ class Model():
         if self.device == 'cuda':
             net = nn.DataParallel(net)
             cudnn.benchmark = True
-        self.summary['dataset'] = cfg.dataset
-        self.summary['net'] = cfg.model['net']
-        self.summary['num_params'] = self.get_num_params(net)
         return net
 
     def _init_criterion(self):
@@ -74,10 +71,8 @@ class Model():
                             momentum     = 0.9,
                             nesterov     = True,
                             weight_decay = 5e-4)
-            self.summary['optimizer'] = 'SGD'
         elif self.mode == 'boosted':
             optimizer = RangerLars(self.net.parameters())
-            self.summary['optimizer'] = 'Ranger + LARS'
         return optimizer
 
     def _init_scheduler(self):
@@ -87,11 +82,9 @@ class Model():
                                           factor   = 0.2,
                                           patience = 20,
                                           verbose  = True)
-            self.summary['scheduler'] = 'ROP'
         elif self.mode == 'alternative':
             half_train = cfg.train['nb_epochs']//2
             scheduler = DelayedCosineAnnealingLR(self.optimizer, half_train, half_train)
-            self.summary['scheduler'] = 'Delayed Cosine Annealing'
         return scheduler
 
     def binary_connect(self, bits):

@@ -181,7 +181,6 @@ NOT FONCTIONAL FOR NOW. DO NOT USE PRUNING
 """
 
 pruning = {
-    'use_pruning': False,
     'pruning_rate': 0.6, # for non asymptotic pruning only
     'asymptotic': True,
     'min': 0, # minimal pruning rate for asymptotic pruning
@@ -222,7 +221,7 @@ Args:
 
     use_binary_connect (bool): Controls the binarization of the network weights.
 
-    pruning (dict): bootstrap the pruning params into the train params.
+    use_pruning (bool): Controls the pruning of the network filters.
 
     distillation (bool): Controls the "training mode", either a standart train or 
                          or student-teacher train, with distillation params specified in 
@@ -235,7 +234,7 @@ train = {
     'patience': 50,
     'delta': 0.01,
     'use_binary_connect': False,
-    'pruning': pruning,
+    'use_pruning':False,
     'verbose': True,
     'distillation':False
 }
@@ -298,7 +297,7 @@ def get_experiment_name():
         basename += '_cutout'
     if dataloader['resize']:
         basename += '_resized'
-    if pruning['use_pruning']:
+    if train['use_pruning']:
         basename += '_pruned'
     if train['use_binary_connect']:
         basename += 'bc'

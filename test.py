@@ -1,13 +1,15 @@
-from utils.decorators import timed
-from utils.augment import Cutout
-from utils.augment import apply_augment
-from utils.score import score2019
+import torch
+from model import Model
+from trainer import Trainer
+import config as cfg
 
 
+def build():
+    print('Building Model...')
+    model = Model()
+    trainer = Trainer(model)
+    print(trainer)
+    return model, trainer
 
-@timed
-def test():
-    print('test')
 
-
-test()
+model, trainer = build()

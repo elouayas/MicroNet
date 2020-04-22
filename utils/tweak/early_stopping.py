@@ -3,7 +3,7 @@ import torch
 
 class EarlyStopping:
     """Early stops the training if validation loss doesn't improve after a given patience."""
-    def __init__(self, patience=7, verbose=False, delta=0):
+    def __init__(self, train_config, checkpoints_path):
         """
         Args:
             patience (int): How long to wait after last time validation loss improved.
@@ -13,19 +13,14 @@ class EarlyStopping:
             delta (float): Minimum change in the monitored quantity to qualify as an improvement.
                             Default: 0
         """
-        self.patience = patience
-        self.verbose = verbose
+        self.patience = train_config['patience']
+        self.verbose = train_config['verbose']
+        self.delta = train_config['delta']
         self.counter = 0
         self.best_score = None
         self.early_stop = False
         self.val_loss_min = np.Inf
-        self.delta = delta
-        
-    def set_checkpoints(self, hyper_parameters, checkpoints_path):
-        self.model_name = hyper_parameters['net']
-        self.optimizer = hyper_parameters['optimizer']
-        self.scheduler = hyper_parameters['scheduler']
-        self.checkpoints_path = checkpoints_path
+        self.checkpoints_path = checkpoints_path 
 
         
     def __call__(self, val_loss, model):
@@ -44,8 +39,8 @@ class EarlyStopping:
             self.counter = 0
 
     def save_checkpoint(self, val_loss, model):
-        filename = self.model_name + '_' + self.optimizer + '_' + self.scheduler + '.pt'
         if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
-        torch.save(model.state_dict(), self.checkpoints_path + filename)
+            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).')
+            print('Saving model ...')
+        torch.save(model.state_dict(), self.checkpoints_path)
         self.val_loss_min = val_loss

@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 from utils.tweak import EarlyStopping
-from utils.decorators import timed
+from utils.decorators import timed, summary
 from utils.score import score2019
 from utils.tweak.distillation import *
 
@@ -17,58 +17,32 @@ from utils.models import *
 
 import config as cfg
 
+
 class Trainer():
      
+    @summary(cfg.dataset, cfg.model, cfg.train)
     def __init__(self, model):
-        self.model = model # model must be an instance of the Model class
+        self.model  = model # model must be an instance of the Model class
         self.trainloader, self.testloader = get_dataloaders()
-        self.config = cfg.train
-        if self.config['distillation']:
+        if cfg.train['distillation']:
             self.teacher_config = cfg.teacher
-        self.writer = torch.utils.tensorboard.SummaryWriter(log_dir=cfg.log['tensorboard_path'])
-        self.early_stopping = self._init_early_stopping()
+        self.writer         = SummaryWriter(log_dir=cfg.log['tensorboard_path'])
+        self.early_stopping = EarlyStopping(cfg.train, cfg.log['checkpoints_path'])
         self.use_binary_connect = self._init_binary_connect()
         self.use_pruning = self._init_pruning()
         self.state = {'train_loss': 0, 'train_acc': 0, 'test_loss': 0, 'test_acc': 0, 
                       'best_acc': 0, 'epoch': 0, 'score_param': 1,'score_op': 1}
-        
-        
-    def __str__(self): 
-        title = 'Training settings  :' + '\n' + '\n'
-        dataset     = 'Dataset...................:  ' + self.model.summary['dataset'] + '\n'
-        net         = 'Net.......................:  ' + self.model.summary['net'] + '\n' 
-        num_params  = 'Number of parameters......:  {:.2e}'.format(self.model.summary['num_params']) + '\n'
-        optimizer   = 'Optimizer.................:  ' + self.model.summary['optimizer'] + '\n'
-        scheduler   = 'Learning Rate Scheduler...:  ' + self.model.summary['scheduler'] + '\n'
-        nb_epochs   = 'Number of epochs..........:  ' + str(self.config['nb_epochs']) + '\n'
-        use_bc      = 'Use Binary Connect........:  ' + str(self.use_binary_connect) + '\n'
-        use_pruning = 'Use Soft Pruning..........:  ' + str(self.use_pruning) + '\n'
-        model_summary = dataset + net + num_params + optimizer + scheduler
-        train_summary = nb_epochs + use_bc + use_pruning
-        return (80*'_' + '\n' + title + model_summary + train_summary + 80*'_')
          
-
-    def _init_early_stopping(self):
-        early_stopping = EarlyStopping(patience=self.config['patience'], 
-                                       delta = self.config['delta'], 
-                                       verbose=self.config['verbose'])
-        early_stopping.set_checkpoints(self.model.summary, 
-                                       cfg.log['checkpoints_path'])
-        return early_stopping
-    
-    
     def _init_binary_connect(self):
-        if self.config['use_binary_connect']:
+        if cfg.train['use_binary_connect']:
             self.binary_connect = self.model.binary_connect()
             return True
         else:
             return False
     
-    
     def _init_pruning(self):
-        pruning_config = self.config['pruning']
-        if pruning_config['use_pruning']:
-            self.mask = Mask(self.model.net, pruning_config, self.config['nb_epochs'])
+        if cfg.train['use_pruning']:
+            self.mask = Mask(self.model.net, cfg.pruning, cfg.train['nb_epochs'])
             self.mask.net = self.model.net
             self.mask.init_mask(0) # epoch number is 0 here
             self.mask.do_mask()
@@ -77,10 +51,8 @@ class Trainer():
         else:
             return False
     
-
-                   
     def train(self,teacher):
-        if not self.config['distillation']:
+        if not cfg.train['distillation']:
             self.model.net.train()
             train_loss, correct, total = 0, 0, 0
             for inputs, labels in tqdm(self.trainloader):
@@ -227,10 +199,10 @@ class Trainer():
             
     def one_epoch_step(self, epoch,teacher):
         print(80*'_')
-        print('EPOCH %d / %d' % (epoch+1, self.config['nb_epochs']))
+        print('EPOCH %d / %d' % (epoch+1, cfg.train['nb_epochs']))
         self.update_state(epoch,teacher)
         self.to_tensorbard(epoch)
-        if self.config['verbose']:
+        if cfg.train['verbose']:
             self.verbose()
         if self.use_pruning:
             self.prune(epoch)
@@ -238,7 +210,7 @@ class Trainer():
 
     @timed
     def run(self):
-        if  self.config['distillation']:
+        if  cfg.train['distillation']:
             ######################### A CHANGER EN UTILISANT LA CLASSE MODEL PROPREMENT
             path = self.teacher_config['teacher_path']
             checkpoint = torch.load(path)
@@ -249,9 +221,9 @@ class Trainer():
             
         else : 
             teacher = 'None'
-        for epoch in range(self.config['nb_epochs']):
+        for epoch in range(cfg.train['nb_epochs']):
             self.one_epoch_step(epoch,teacher)
-            if self.config['use_early_stopping']:
+            if cfg.train['use_early_stopping']:
                 self.early_stopping(self.state['test_loss'], self.model.net)
                 if self.early_stopping.early_stop:
                     print("Early stopping")
