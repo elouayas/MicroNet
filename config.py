@@ -92,7 +92,7 @@ Args:
 
 
 
-model_config = {
+model = {
     'net': 'densenet_100_micronet',
     'mode': 'baseline', # can be 'baseline' or 'boosted'
     'activation': 'ReLU', # can be 'ReLU' or 'Mish'
