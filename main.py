@@ -4,10 +4,11 @@
 # |                                                                                       | #
 # +---------------------------------------------------------------------------------------+ #
 
-
+import os
 import torch
 from model import Model
 from trainer import Trainer
+from utils import save
 import config as cfg
 
 # +---------------------------------------------------------------------------------------+ #
@@ -30,17 +31,11 @@ def train():
     try:
         trainer.run()
     except KeyboardInterrupt:
-        prefix = 'INTERRUPTED_EPOCH_' + str(trainer.state['epoch']) + '_'
-        checkpoints_path = prefix + cfg.get_experiment_name() + '.pt'
-        torch.save(model.net.state_dict(), checkpoints_path)
-        print()
-        print(80*'_')
-        print('Training Interrupted')
-        print('Current State saved.')
+        save(cfg.dataset, cfg.get_experiment_name(), model)
 
 
 def test(path):
-    model, trainer = load_trained(path)
+    model, trainer = build()
     model.load(path)
     model.net.eval()
     test_loss, test_acc = trainer.test()

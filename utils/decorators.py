@@ -56,19 +56,47 @@ def summary(dataset, model_config, train_config):
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ # 
 
+def verbose(function):
+    """ This verbose decorator is specific to the one_epoch_step() method
+        of the Trainer class.
+    """ 
+    def wrapper_train(*args, **kwargs):
+        current_epoch, nb_epochs = args[1], args[2]
+        print(80*'_')
+        print('EPOCH %d / %d' % (current_epoch+1, nb_epochs))
+        _, train_loss, train_acc, test_loss, test_acc, lr = function(*args, **kwargs)
+        print()
+        print('Train Loss................: {:.2f}'.format(train_loss))
+        print('Test Loss.................: {:.2f}'.format(test_loss))
+        print('Train Accuracy............: {:.2f}'.format(train_acc))
+        print('Test Accuracy.............: {:.2f}'.format(test_acc))
+        print()
+        print('Current Learning Rate.....: {:.10f}'.format(lr))
+        if test_acc > wrapper_train.best_acc:
+            wrapper_train.best_acc = test_acc
+        print('Best Test Accuracy........: {:.2f}'.format(wrapper_train.best_acc))
+        return _, train_loss, train_acc, test_loss, test_acc, lr
+    wrapper_train.best_acc = 0
+    return wrapper_train
 
-def verbose(state):
-    def verbose_decorator(function):
-        def wrapper(*args, **kwargs):
-            output = function(*args, **kwargs)
-            print()
-            print('Train Loss................: {:.2f}'.format(state['train_loss']))
-            print('Test Loss.................: {:.2f}'.format(state['test_loss']))
-            print('Train Accuracy............: {:.2f}'.format(state['train_acc']))
-            print('Test Accuracy.............: {:.2f}'.format(state['test_acc']))
-            print()
-            print('Current Learning Rate.....: {:.10f}'.format(state['lr']))
-            print('Best Test Accuracy........: {:.2f}'.format(state['best_acc']))
-            return output
-        return wrapper
-    return verbose_decorator
+
+# +-------------------------------------------------------------------------------------+ # 
+# |                                                                                     | #
+# |                                     TO TENSORBOARD                                  | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ # 
+
+def toTensorboard(function):
+    """ This verbose decorator is specific to the one_epoch_step() method
+        of the Trainer class.
+    """ 
+    def wrapper_train(*args, **kwargs):
+        epoch = args[1]
+        writer, train_loss, train_acc, test_loss, test_acc, lr = function(*args, **kwargs)
+        writer.add_scalar('Loss/train', train_loss, epoch)
+        writer.add_scalar('Accuracy/train', train_acc, epoch)
+        writer.add_scalar('Loss/test', test_loss, epoch)
+        writer.add_scalar('Accuracy/test', test_acc, epoch)
+        writer.add_scalar('Learning Rate/lr', lr, epoch)
+        return writer, train_loss, train_acc, test_loss, test_acc, lr
+    return wrapper_train

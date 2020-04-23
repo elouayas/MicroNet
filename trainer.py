@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from utils.models import *
 from utils.tweak import EarlyStopping, Distillator
-from utils.decorators import timed, summary
+from utils.decorators import *
 from utils.score import score2019
 
 from dataloader import get_dataloaders
@@ -21,17 +21,12 @@ class Trainer():
      
     @summary(cfg.dataset, cfg.model, cfg.train)
     def __init__(self, model):
-        self.model  = model # model must be an instance of the Model class
         self.trainloader, self.testloader = get_dataloaders()
-        if cfg.train['distillation']:
-            self.teacher_config = cfg.teacher
-        self.writer         = SummaryWriter(log_dir=cfg.log['tensorboard_path'])
-        self.early_stopping = EarlyStopping(cfg.train, cfg.log['checkpoints_path'])
+        self.model              = model # model must be an instance of the Model class
+        self.writer             = SummaryWriter(log_dir=cfg.log['tensorboard_path'])
+        self.early_stopping     = EarlyStopping(cfg.train, cfg.log['checkpoints_path'])
         self.use_binary_connect = self._init_binary_connect()
-        self.use_pruning = self._init_pruning()
-        self.state = {'train_loss': 0, 'train_acc': 0, 'test_loss': 0, 'test_acc': 0, 
-                      'best_acc': 0, 'epoch': 0, 'score_param': 1,'score_op': 1,
-                      'lr': self.model.optimizer.param_groups[0]['lr']}
+        self.use_pruning        = self._init_pruning()
          
     def _init_binary_connect(self):
         if cfg.train['use_binary_connect']:
@@ -100,7 +95,6 @@ class Trainer():
         test_acc = 100.*correct/total
         return test_loss, test_acc
     
-    
     def prune(self, epoch):
         self.mask.net = self.model.net
         self.mask.verbose()
@@ -109,51 +103,23 @@ class Trainer():
         self.mask.verbose()
         self.model.net = self.mask.net
     
-    
-    def verbose(self):
-        print()
-        print('Train Loss................: {:.2f}'.format(self.state['train_loss']))
-        print('Test Loss.................: {:.2f}'.format(self.state['test_loss']))
-        print('Train Accuracy............: {:.2f}'.format(self.state['train_acc']))
-        print('Test Accuracy.............: {:.2f}'.format(self.state['test_acc']))
-        print()
-        print('Current Learning Rate.....: {:.10f}'.format(self.state['lr']))
-        print('Best Test Accuracy........: {:.2f}'.format(self.state['best_acc']))
-        
-    
-    def to_tensorbard(self, epoch):
-        self.writer.add_scalar('Loss/train', self.state['train_loss'], epoch)
-        self.writer.add_scalar('Accuracy/train', self.state['train_acc'], epoch)
-        self.writer.add_scalar('Loss/test', self.state['test_loss'], epoch)
-        self.writer.add_scalar('Accuracy/test', self.state['test_acc'], epoch)
-        self.writer.add_scalar('Learning Rate/lr', self.state['lr'], epoch)
-        
-        
-    def update_state(self, epoch, distillator):
+    @verbose
+    @toTensorboard
+    def one_epoch_step(self, current_epoch, nb_epochs, distillator):
+        """
+            the two epoch params are used in the verbose decorator
+            the returns values are used in verbose and to_tensorboard
+        """
         train_loss, train_acc = self.train(distillator)
         test_loss, test_acc = self.test()
         if cfg.model['mode'] == 'basic':
             self.model.scheduler.step(test_loss) # ROP
         else:
             self.model.scheduler.step()
-        self.state['train_loss'] = train_loss
-        self.state['train_acc']  = train_acc
-        self.state['test_loss']  = test_loss
-        self.state['test_acc']   = test_acc
-        self.state['lr']         = self.model.optimizer.param_groups[0]['lr']
-        if test_acc > self.state['best_acc']:
-            self.state['best_acc'] = test_acc
-
-            
-    def one_epoch_step(self, epoch, distillator):
-        print(80*'_')
-        print('EPOCH %d / %d' % (epoch+1, cfg.train['nb_epochs']))
-        self.update_state(epoch, distillator)
-        self.to_tensorbard(epoch)
-        if cfg.train['verbose']:
-            self.verbose()
         if self.use_pruning:
-            self.prune(epoch)
+            self.prune(current_epoch)
+        lr = self.model.optimizer.param_groups[0]['lr']
+        return self.writer, train_loss, train_acc, test_loss, test_acc, lr
     
 
     @timed
@@ -165,9 +131,11 @@ class Trainer():
         else : 
             distillator = None 
         for epoch in range(cfg.train['nb_epochs']):
-            self.one_epoch_step(epoch, distillator)
+            _, _, _, test_loss, _, _ = self.one_epoch_step(epoch, 
+                                                           cfg.train['nb_epochs'],
+                                                           distillator)
             if cfg.train['use_early_stopping']:
-                self.early_stopping(self.state['test_loss'], self.model.net)
+                self.early_stopping(test_loss, self.model.net)
                 if self.early_stopping.early_stop:
                     print("Early stopping")
                     break
