@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import math
 
-from utils.shakedrop import ShakeDrop
+from utils.layers.shakedrop import ShakeDrop
 
 
 def conv3x3(in_planes, out_planes, stride=1):

@@ -6,7 +6,7 @@ from torch import sign
 import torch
 
 
-class BC():
+class BinaryConnect():
     
     def __init__(self, model):
         # First we need to count the number of Conv2d and Linear

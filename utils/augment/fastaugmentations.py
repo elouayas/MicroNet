@@ -213,3 +213,18 @@ class Lighting(object):
             .sum(1).squeeze()
 
         return img.add(rgb.view(3, 1, 1).expand_as(img))
+
+
+### FAST AUTO
+class Augmentation(object):
+    def __init__(self, policies):
+        self.policies = policies
+
+    def __call__(self, img):
+        for _ in range(1):
+            policy = random.choice(self.policies)
+            for name, pr, level in policy:
+                if random.random() > pr:
+                    continue
+                img = apply_augment(img, name, level)
+        return img

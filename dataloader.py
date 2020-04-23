@@ -1,14 +1,13 @@
+from PIL import Image
+
 from torchvision import transforms
 from torchvision.datasets import CIFAR10,CIFAR100
 from torch.utils.data import DataLoader
 
-from PIL import Image
-
-from utils.augment.autoaugment import CIFAR10Policy
-from utils.augment.cutout import Cutout
-
-from utils.fastaugmentations import *
-from utils.archive import arsaug_policy, autoaug_policy, autoaug_paper_cifar10, fa_reduced_cifar10
+from utils.augment import CIFAR10Policy
+from utils.augment import Cutout
+from utils.augment.fastaugmentations import Augmentation
+from utils.augment.archive import fa_reduced_cifar10
 
 import config as cfg
 
@@ -91,17 +90,5 @@ def get_dataloaders():
 
 
 
-### FAST AUTO
-class Augmentation(object):
-    def __init__(self, policies):
-        self.policies = policies
 
-    def __call__(self, img):
-        for _ in range(1):
-            policy = random.choice(self.policies)
-            for name, pr, level in policy:
-                if random.random() > pr:
-                    continue
-                img = apply_augment(img, name, level)
-        return img
 

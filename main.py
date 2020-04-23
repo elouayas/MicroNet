@@ -1,14 +1,14 @@
-"""
-+---------------------------------------------------------------------------------------+
-|                                                                                       |
-|                                         MAIN                                          |
-|                                                                                       |
-+---------------------------------------------------------------------------------------+
-"""
+# +---------------------------------------------------------------------------------------+ #
+# |                                                                                       | #
+# |                                         MAIN                                          | #
+# |                                                                                       | #
+# +---------------------------------------------------------------------------------------+ #
 
+import os
 import torch
 from model import Model
 from trainer import Trainer
+from utils import save
 import config as cfg
 
 # +---------------------------------------------------------------------------------------+ #
@@ -18,37 +18,26 @@ import config as cfg
 # |                                                                                       | #
 # +---------------------------------------------------------------------------------------+ #
 
-
-def train():
+def build():
     print('Building Model...')
-    model = Model()
+    model = Model(cfg.model['net'])
     trainer = Trainer(model)
     print(trainer)
+    return model, trainer
+
+
+def train():
+    model, trainer = build()
     try:
         trainer.run()
     except KeyboardInterrupt:
-        net = model.net.summary['net']
-        optimizer =  model.net.summary['optimizer']
-        scheduler = model.net.summary['scheduler']
-        basename = net + '_' + optimizer + '_' + scheduler + '.pt'
-        if cfg.dataloader['pretrained']:
-            filename = 'interrupted_' + 'pretrained_' + basename
-        else:
-            filename = 'interrupted_' + basename
-        path = train_config['checkpoints_path'] + filename
-        torch.save(model.net.state_dict(), path)
-        print()
-        print(80*'_')
-        print('Training Interrupted')
-        print('Current State saved.')
+        save(cfg.dataset, cfg.get_experiment_name(), model)
 
 
-def test():
-    print('Building Model...')
-    model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config)
-    model = torch.load('./checkpoints/wide-resnet-28x10.t7')
-    model.eval()
+def test(path):
+    model, trainer = build()
+    model.load(path)
+    model.net.eval()
     test_loss, test_acc = trainer.test()
     print(80*'_')
     print(f'Loss......: {test_loss}')
@@ -56,14 +45,8 @@ def test():
     print(80*'_')
 
 
-def load():
-    print('Building Model...')
-    model = Model(model_config, dataloader_config, dataset)
-    trainer = Trainer(model, dataloader_config, train_config)
-    print(trainer)
-
 
 if __name__ == '__main__':
-    #load()
+    #build()
     train()
-    # test()
+    #test()

@@ -92,13 +92,9 @@ Args:
 
 
 
-model_config = {
+model = {
     'net': 'densenet_100_micronet',
-    'mode': 'baseline', # can be 'baseline' or 'boosted'
-    'activation': 'ReLU', # can be 'ReLU' or 'Mish'
-    # baseline means SGD + ROP, 'boosted' means RangerLars + DelayedCosineAnnealingLR
-    # if lalbe_smoothing is True
-    # use utils.LabelSmoothingCrossEntropy instead of vanilla CrossEntropy.
+    'mode': 'basic',
     'label_smoothing': False,
     'smoothing': 0.1,
     'reduction': 'mean', 
@@ -160,7 +156,8 @@ Args:
 dataloader = {
     'rootdir': './data/',
     'download': True,
-    'batch_size': 128,
+    'train_batch_size': 128,
+    'test_batch_size': 64,
     'nb_workers': 6,
     'data_aug': False,
     'fast_aug': False,
@@ -184,7 +181,6 @@ NOT FONCTIONAL FOR NOW. DO NOT USE PRUNING
 """
 
 pruning = {
-    'use_pruning': False,
     'pruning_rate': 0.6, # for non asymptotic pruning only
     'asymptotic': True,
     'min': 0, # minimal pruning rate for asymptotic pruning
@@ -225,7 +221,7 @@ Args:
 
     use_binary_connect (bool): Controls the binarization of the network weights.
 
-    pruning (dict): bootstrap the pruning params into the train params.
+    use_pruning (bool): Controls the pruning of the network filters.
 
     distillation (bool): Controls the "training mode", either a standart train or 
                          or student-teacher train, with distillation params specified in 
@@ -238,7 +234,7 @@ train = {
     'patience': 50,
     'delta': 0.01,
     'use_binary_connect': False,
-    'pruning': pruning,
+    'use_pruning':False,
     'verbose': True,
     'distillation':False
 }
@@ -301,7 +297,7 @@ def get_experiment_name():
         basename += '_cutout'
     if dataloader['resize']:
         basename += '_resized'
-    if pruning['use_pruning']:
+    if train['use_pruning']:
         basename += '_pruned'
     if train['use_binary_connect']:
         basename += 'bc'
@@ -319,7 +315,7 @@ This should never be modified as it is generated with regards to all other confi
 
 log = {
     'tensorboard_path': './runs/'+dataset+'/'+get_experiment_name(),
-    'checkpoints_path': './checkpoints/'+dataset+'/'+get_experiment_name()
+    'checkpoints_path': './checkpoints/'+dataset+'/'+get_experiment_name()+'.pt'
 }
 
 
