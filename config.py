@@ -159,7 +159,7 @@ dataloader = {
     'train_batch_size': 128,
     'test_batch_size': 64,
     'nb_workers': 6,
-    'data_aug': False,
+    'data_aug': True,
     'fast_aug': False,
     'use_cutout': False,
     'n_holes': 1,

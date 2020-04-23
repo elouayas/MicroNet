@@ -9,6 +9,7 @@ from torch.autograd import Variable
 
 from utils.layers.shakedrop import ShakeDrop
 
+
 class ShakeBasicBlock(nn.Module):
 
     def __init__(self, in_ch, out_ch, stride=1, p_shakedrop=1.0):
