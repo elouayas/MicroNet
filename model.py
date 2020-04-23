@@ -30,10 +30,10 @@ import config as cfg
 class Model():
     
     @timed
-    def __init__(self):
+    def __init__(self, net):
         self.device     = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         self.mode       = cfg.model['mode']
-        self.net        = self._init_net()
+        self.net        = self._init_net(net)
         self.criterion  = self._init_criterion()
         self.optimizer  = self._init_optimizer()
         self.scheduler  = self._init_scheduler()
@@ -49,8 +49,8 @@ class Model():
             total_num_params += num_params
         return total_num_params
 
-    def _init_net(self):
-        net = load_net(cfg.dataset, cfg.model['net'], cfg.model['quantize'])
+    def _init_net(self, net):
+        net = load_net(cfg.dataset, net, cfg.model['quantize'])
         net = net.to(self.device)
         if self.device == 'cuda':
             net = nn.DataParallel(net)
@@ -95,3 +95,7 @@ class Model():
         the 'use_binary_connect' param of the train_config dict defined in config.py
         """
         return BinaryConnect(self.net)
+
+    def load(self, path):
+        checkpoint = torch.load(path)
+        self.net.load_state_dict(checkpoint['state_dict'])

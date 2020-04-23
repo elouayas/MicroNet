@@ -1,11 +1,12 @@
+from time import time
+
+
+
 # +-------------------------------------------------------------------------------------+ # 
 # |                                                                                     | #
 # |                                         TIMER                                       | #
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ #  
-
-from time import time
-
 
 def timed(function):
     def wrapper(*args, **kwargs):
@@ -13,8 +14,9 @@ def timed(function):
         output = function(*args, **kwargs)
         end = time()
         run_time = end-start
+        h, m, s = run_time//3600, (run_time%3600)//60, run_time%60
         print('Function mesured...: ' + str(function))
-        print('Time taken.........: %dh %dm %.2fs' % (run_time//3600, (run_time%3600)//60, run_time%60))
+        print('Time taken.........: %dh %dm %.2fs' % (h, m, s))
         return output
     return wrapper
 
@@ -47,4 +49,26 @@ def summary(dataset, model_config, train_config):
         return wrapper
     return summary_decorator
     
-        
+
+# +-------------------------------------------------------------------------------------+ # 
+# |                                                                                     | #
+# |                                        VERBOSE                                      | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ # 
+
+
+def verbose(state):
+    def verbose_decorator(function):
+        def wrapper(*args, **kwargs):
+            output = function(*args, **kwargs)
+            print()
+            print('Train Loss................: {:.2f}'.format(state['train_loss']))
+            print('Test Loss.................: {:.2f}'.format(state['test_loss']))
+            print('Train Accuracy............: {:.2f}'.format(state['train_acc']))
+            print('Test Accuracy.............: {:.2f}'.format(state['test_acc']))
+            print()
+            print('Current Learning Rate.....: {:.10f}'.format(state['lr']))
+            print('Best Test Accuracy........: {:.2f}'.format(state['best_acc']))
+            return output
+        return wrapper
+    return verbose_decorator

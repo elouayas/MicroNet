@@ -1,4 +1,6 @@
+import os
 import numpy as np
+
 import torch
 
 class EarlyStopping:
@@ -39,6 +41,10 @@ class EarlyStopping:
             self.counter = 0
 
     def save_checkpoint(self, val_loss, model):
+        if not os.path.isdir('./checkpoints/cifar100/'):
+            os.mkdir('./checkpoints/cifar100/')
+        if not os.path.isdir('./checkpoints/cifar10/'):
+            os.mkdir('./checkpoints/cifar10/')
         if self.verbose:
             print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).')
             print('Saving model ...')

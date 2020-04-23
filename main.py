@@ -19,15 +19,9 @@ import config as cfg
 
 def build():
     print('Building Model...')
-    model = Model()
+    model = Model(cfg.model['net'])
     trainer = Trainer(model)
     print(trainer)
-    return model, trainer
-
-
-def load_trained(path):
-    model, trainer = build()
-    model = torch.load(path)
     return model, trainer
 
 
@@ -37,8 +31,8 @@ def train():
         trainer.run()
     except KeyboardInterrupt:
         prefix = 'INTERRUPTED_EPOCH_' + str(trainer.state['epoch']) + '_'
-        checkpoints_filename = prefix + cfg.get_experiment_name() + '.pt'
-        torch.save(model.net.state_dict(), path)
+        checkpoints_path = prefix + cfg.get_experiment_name() + '.pt'
+        torch.save(model.net.state_dict(), checkpoints_path)
         print()
         print(80*'_')
         print('Training Interrupted')
@@ -47,7 +41,8 @@ def train():
 
 def test(path):
     model, trainer = load_trained(path)
-    model.eval()
+    model.load(path)
+    model.net.eval()
     test_loss, test_acc = trainer.test()
     print(80*'_')
     print(f'Loss......: {test_loss}')
@@ -57,6 +52,6 @@ def test(path):
 
 
 if __name__ == '__main__':
-    build()
-    #train()
+    #build()
+    train()
     #test()
