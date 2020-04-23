@@ -236,7 +236,7 @@ train = {
     'use_binary_connect': False,
     'use_pruning':False,
     'verbose': True,
-    'distillation':False
+    'distillation':True
 }
 
 
@@ -260,7 +260,7 @@ NOT FULLY IMPLEMENTED YET.
 
 
 teacher  = {
-    'teacher_path':'model_best.pth.tar',
+    'teacher_path':'checkpoints/model_best.pth.tar',
     'lambda_hkd':10,
     'lambda_gkd':0,
     'lambda_rkd':0,
@@ -270,7 +270,7 @@ teacher  = {
     'k':128,
     'intra_only':False,
     'inter_only':False,
-    'net': 'PyramidNet200',
+    'net': 'pyramidnet200',
 }
 
 

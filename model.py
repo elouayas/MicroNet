@@ -31,7 +31,7 @@ class Model():
     
     @timed
     def __init__(self, net):
-        self.device     = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+        self.device     = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.mode       = cfg.model['mode']
         self.net        = self._init_net(net)
         self.criterion  = self._init_criterion()

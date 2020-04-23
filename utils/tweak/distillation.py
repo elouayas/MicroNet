@@ -140,7 +140,7 @@ class Distillator():
         with torch.no_grad():
             #TODO: adapter model pour qu'elle sorte output, layers
             # teacher_output, teacher_layers = teacher(inputs)"""
-            self.teacher_output = self.teacher(inputs) # a supprimer quand la ligne au dessus sera fonctionel
+            teacher_output = self.teacher(inputs) # a supprimer quand la ligne au dessus sera fonctionel
             if self.lambda_hkd > 0:
                 loss = self.do_hkd(loss, outputs, teacher_output)
             #if self.lambda_rkd > 0:
