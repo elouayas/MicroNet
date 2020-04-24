@@ -5,7 +5,7 @@ from torchvision.datasets import CIFAR10,CIFAR100
 from torch.utils.data import DataLoader
 
 from utils.augment import CIFAR10Policy
-from utils.augment import Cutout
+from utils.augment.cutout import Cutout
 from utils.augment.fastaugmentations import Augmentation
 from utils.augment.archive import fa_reduced_cifar10
 
@@ -29,14 +29,15 @@ def get_transforms():
         resize = [transforms.Resize((224,224), interpolation=Image.BICUBIC)]
     else:
         resize = []
+    if cfg.dataloader['use_cutout']:
+        cutout = [Cutout(cfg.dataloader['n_holes'],cfg.dataloader['length'])]
+    else:
+        cutout = []
     aug = [transforms.RandomCrop(32, padding=4), 
            transforms.RandomHorizontalFlip()]
     if cfg.dataloader['data_aug']:
         aug += [CIFAR10Policy()]
-    if cfg.dataloader['use_cutout']:
-        aug += [Cutout(n_holes=cfg.dataloader['n_holes'],
-                       length =cfg.dataloader['length'])]
-    transform_train = transforms.Compose(aug + resize + to_tensor + normalize)
+    transform_train = transforms.Compose(aug + resize + to_tensor + cutout + normalize)
     transform_test  = transforms.Compose(resize + to_tensor + normalize)
     if cfg.dataloader['fast_aug']:
         transform_train.transforms.insert(0, Augmentation(fa_reduced_cifar10()))
@@ -72,7 +73,11 @@ def get_datasets(transform_train, transform_test):
     return trainset, testset
 
 
-###########################################  DATALOADER  ###########################################
+# +-------------------------------------------------------------------------------------+ # 
+# |                                                                                     | #
+# |                                    DATALOADERS                                      | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ #
 
 def get_dataloaders():
     transform_train, transform_test = get_transforms()

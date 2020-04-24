@@ -93,7 +93,7 @@ Args:
 
 
 model = {
-    'net': 'densenet_100_micronet',
+    'net': 'densenet_172_micronet',
     'mode': 'basic',
     'label_smoothing': False,
     'smoothing': 0.1,
@@ -156,8 +156,8 @@ Args:
 dataloader = {
     'rootdir': './data/',
     'download': True,
-    'train_batch_size': 128,
-    'test_batch_size': 64,
+    'train_batch_size': 32,
+    'test_batch_size': 16,
     'nb_workers': 6,
     'data_aug': True,
     'fast_aug': False,
@@ -170,7 +170,7 @@ dataloader = {
 
 # +-------------------------------------------------------------------------------------+ # 
 # |                                                                                     | #
-# |                                   DATALOADER CONFIG                                 | #
+# |                                     PRUNING CONFIG                                  | #
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ #
 
@@ -219,6 +219,16 @@ Args:
                    Else, this controls the decrease of loss to stop the early stopping
                    (or, to be precise, to reset its patience).
 
+    use_cutmix (bool): controls the use of cutmix.
+                       If True, Trainer.train() will call the Cutmix class 
+                       from utils.augment.cutmix with a probability p.
+
+    beta (float): If use_cutmix is False, this has no effect.
+                  Else, a number is generated via numpy.random.beta(beta,beta)
+
+    p (float): If use_cutmix is False, this has no effect.
+               Else, Trainer.train() will call Cutmix with this probability. 
+
     use_binary_connect (bool): Controls the binarization of the network weights.
 
     use_pruning (bool): Controls the pruning of the network filters.
@@ -233,10 +243,13 @@ train = {
     'use_early_stopping': True,
     'patience': 50,
     'delta': 0.01,
+    'use_cutmix': False,
+    'beta': 1.0,
+    'p': 0.5,
     'use_binary_connect': False,
     'use_pruning':False,
     'verbose': True,
-    'distillation':True
+    'distillation':False
 }
 
 
@@ -292,7 +305,7 @@ def get_experiment_name():
         if dataloader['fast_aug']:
             basename += '_faa'
         else:
-            basename += 'aa'
+            basename += '_aa'
     if dataloader['use_cutout']:
         basename += '_cutout'
     if dataloader['resize']:

@@ -1,3 +1,4 @@
+import numpy as np
 from tqdm import tqdm
 
 import torch
@@ -7,6 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 from utils.models import *
 from utils.tweak import EarlyStopping, Distillator
+from utils.augment import Cutmix
 from utils.decorators import *
 from utils.score import score2019
 
@@ -55,13 +57,18 @@ class Trainer():
                 self.binary_connect.binarization()
             inputs, labels = Variable(inputs), Variable(labels)
             self.model.optimizer.zero_grad()
-            if cfg.train['distillation']:
-                #outputs, layers = self.model.net(inputs)#### a changer
-                outputs = self.model.net(inputs)#### a changer
-                loss = distillator.run(inputs, outputs, labels)
+            #outputs, layers = self.model.net(inputs)#### a changer
+            r = np.random.rand(1)
+            if cfg.train['use_cutmix'] and r < cfg.train['p']:
+                lam, inputs, target_a, target_b = Cutmix(inputs, labels, cfg.train['beta'])
+                outputs = self.model.net(inputs) #### a changer
+                loss = self.model.criterion(outputs, target_a) * lam + \
+                       self.model.criterion(outputs, target_b) * (1. - lam)
             else:
-                outputs = self.model.net(inputs)
-                loss = self.model.criterion(outputs, labels)
+                outputs = self.model.net(inputs) #### a changer
+                loss    = self.model.criterion(outputs, labels) 
+            if cfg.train['distillation']:
+                loss = distillator.run(inputs, outputs, labels)
             loss.backward()
             if self.use_binary_connect:
                 self.binary_connect.clip()
@@ -139,7 +146,7 @@ class Trainer():
                 if self.early_stopping.early_stop:
                     print("Early stopping")
                     break
-        score2019(self.model)
+        #score2019(self.model)
         
         
 

@@ -24,7 +24,6 @@ class Cutout(object):
         img = transforms.ToTensor()(img)
         h = img.size(1)
         w = img.size(2)
-
         mask = np.ones((h, w), np.float32)
 
         for n in range(self.n_holes):
