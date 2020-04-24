@@ -28,7 +28,7 @@ def count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
     total_ops = y.nelement() * (m.in_channels // m.groups * kernel_ops + bias_ops)
 
     m.total_ops += torch.Tensor([int(total_ops)])
-    
+
 def quant_count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
     x = x[0]
 
@@ -71,7 +71,7 @@ def count_relu(m, x, y):
     nelements = x.numel()
 
     m.total_ops += torch.Tensor([int(nelements)])
-    
+
 def quant_count_relu(m, x, y):
     x = x[0]
 
@@ -154,7 +154,7 @@ def count_linear(m, x, y):
     total_ops = (total_mul + total_add) * num_elements
 
     m.total_ops += torch.Tensor([int(total_ops)])
-    
+
 def quant_count_linear(m, x, y):
     # per output element
     total_mul = m.in_features
