@@ -29,17 +29,6 @@ def count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
 
     m.total_ops += torch.Tensor([int(total_ops)])
 
-def quant_count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
-    x = x[0]
-
-    kernel_ops = torch.zeros(m.weight.size()[2:]).numel()  # Kw x Kh
-    bias_ops = 1 if m.bias is not None else 0
-
-    # N x Cout x H x W x  (Cin x Kw x Kh + bias)
-    total_ops = y.nelement() * (mul_quantize_ratio * m.in_channels // m.groups * kernel_ops + add_quantize_ratio * bias_ops)
-
-    m.total_ops += torch.Tensor([int(total_ops)])
-
 def count_convNd_ver2(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
     x = x[0]
 
@@ -71,14 +60,6 @@ def count_relu(m, x, y):
     nelements = x.numel()
 
     m.total_ops += torch.Tensor([int(nelements)])
-
-def quant_count_relu(m, x, y):
-    x = x[0]
-
-    nelements = x.numel()
-    nelemeents_quantize = nelements * mul_quantize_ratio
-
-    m.total_ops += torch.Tensor([int(nelements_quantize)])
 
 
 def count_softmax(m, x, y):
@@ -152,15 +133,5 @@ def count_linear(m, x, y):
     total_add += 1 if m.bias is not None else 0
     num_elements = y.numel()
     total_ops = (total_mul + total_add) * num_elements
-
-    m.total_ops += torch.Tensor([int(total_ops)])
-
-def quant_count_linear(m, x, y):
-    # per output element
-    total_mul = m.in_features
-    total_add = m.in_features - 1
-    total_add += 1 if m.bias is not None else 0
-    num_elements = y.numel()
-    total_ops = (mul_quantize_ratio*total_mul + add_quantize_ratio*total_add) * num_elements
 
     m.total_ops += torch.Tensor([int(total_ops)])

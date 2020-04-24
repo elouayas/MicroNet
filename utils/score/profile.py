@@ -1,8 +1,6 @@
 import logging
 
 import torch
-import torch.nn as nn
-import brevitas.nn as qnn
 from brevitas.core.quant import QuantType
 from torch.nn.modules.conv import _ConvNd
 import warnings
@@ -26,14 +24,12 @@ register_hooks = {
     nn.ConvTranspose1d: count_convNd,
     nn.ConvTranspose2d: count_convNd,
     nn.ConvTranspose3d: count_convNd,
-    qnn.QuantConv2d: quant_count_convNd,
 
     nn.BatchNorm1d: count_bn,
     nn.BatchNorm2d: count_bn,
     nn.BatchNorm3d: count_bn,
 
     nn.ReLU: zero_ops,
-    qnn.QuantReLU: zero_ops,
     nn.ReLU6: zero_ops,
     nn.LeakyReLU: count_relu,
 
@@ -53,7 +49,6 @@ register_hooks = {
     nn.AdaptiveAvgPool3d: count_adap_avgpool,
 
     nn.Linear: count_linear,
-    qnn.QuantLinear: quant_count_linear,
     nn.Dropout: zero_ops,
 
     nn.Upsample: count_upsample,
