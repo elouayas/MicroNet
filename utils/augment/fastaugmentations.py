@@ -114,7 +114,7 @@ def Sharpness(img, v):  # [0.1,1.9]
     return PIL.ImageEnhance.Sharpness(img).enhance(v)
 
 
-def Cutout(img, v):  # [0, 60] => percentage: [0, 0.2]
+def Cutout_fast_aug(img, v):  # [0, 60] => percentage: [0, 0.2]
     assert 0.0 <= v <= 0.2
     if v <= 0.:
         return img
@@ -169,7 +169,7 @@ def augment_list(for_autoaug=True):  # 16 oeprations and their ranges
         (Color, 0.1, 1.9),  # 11
         (Brightness, 0.1, 1.9),  # 12
         (Sharpness, 0.1, 1.9),  # 13
-        (Cutout, 0, 0.2),  # 14
+        (Cutout_fast_aug, 0, 0.2),  # 14
         # (SamplePairing(imgs), 0, 0.4),  # 15
     ]
     if for_autoaug:

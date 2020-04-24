@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from torchvision import transforms
 
 
 class Cutout(object):
@@ -19,6 +20,8 @@ class Cutout(object):
         Returns:
             Tensor: Image with n_holes of dimension length x length cut out of it.
         """
+        
+        img = transforms.ToTensor()(img)
         h = img.size(1)
         w = img.size(2)
 
@@ -34,9 +37,10 @@ class Cutout(object):
             x2 = np.clip(x + self.length // 2, 0, w)
 
             mask[y1: y2, x1: x2] = 0.
-
         mask = torch.from_numpy(mask)
         mask = mask.expand_as(img)
         img = img * mask
+        img = transforms.ToPILImage()(img)
+
 
         return img
