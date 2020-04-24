@@ -29,6 +29,9 @@ class Trainer():
         self.early_stopping     = EarlyStopping(cfg.train, cfg.log['checkpoints_path'])
         self.use_binary_connect = self._init_binary_connect()
         self.use_pruning        = self._init_pruning()
+        self.state              = {'train_loss': 0, 'test_loss': 0,
+                                   'train_acc' : 0, 'test_acc' : 0,
+                                   'lr': self.model.optimizer.param_groups[0]['lr']}
          
     def _init_binary_connect(self):
         if cfg.train['use_binary_connect']:
@@ -146,7 +149,7 @@ class Trainer():
                 if self.early_stopping.early_stop:
                     print("Early stopping")
                     break
-        #score2019(self.model)
+        score2019(self.model)
         
         
 

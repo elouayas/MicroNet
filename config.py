@@ -93,7 +93,7 @@ Args:
 
 
 model = {
-    'net': 'densenet_172_micronet',
+    'net': 'resnet20',
     'mode': 'basic',
     'label_smoothing': False,
     'smoothing': 0.1,
@@ -239,7 +239,7 @@ Args:
 """ 
 
 train = {
-    'nb_epochs' : 1000,
+    'nb_epochs' : 1,
     'use_early_stopping': True,
     'patience': 50,
     'delta': 0.01,
