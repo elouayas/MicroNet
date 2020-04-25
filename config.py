@@ -93,7 +93,7 @@ Args:
 
 
 model = {
-    'net': 'resnet20',
+    'net': 'densenet_100_micronet_mish',
     'mode': 'basic',
     'label_smoothing': False,
     'smoothing': 0.1,
@@ -156,12 +156,12 @@ Args:
 dataloader = {
     'rootdir': './data/',
     'download': True,
-    'train_batch_size': 32,
-    'test_batch_size': 16,
+    'train_batch_size': 128,
+    'test_batch_size': 100,
     'nb_workers': 6,
     'data_aug': True,
     'fast_aug': False,
-    'use_cutout': False,
+    'use_cutout': True,
     'n_holes': 1,
     'length': 16,
     'resize': False,
@@ -239,7 +239,7 @@ Args:
 """ 
 
 train = {
-    'nb_epochs' : 1,
+    'nb_epochs' : 300,
     'use_early_stopping': True,
     'patience': 50,
     'delta': 0.01,
@@ -333,4 +333,11 @@ log = {
 
 
 
+
+Kmean = {
+    'c':2,
+    'k':40, #c'est pas le CR
+    'logk':6,
+    'CR':0,
+}
     

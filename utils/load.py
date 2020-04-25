@@ -29,8 +29,18 @@ def load_net(dataset, net, quantize):
                                     num_classes = 100, 
                                     growthRate = 12, 
                                     compressionRate = 2)
+        elif net =='densenet_100_micronet_mish':
+            net = densenet_micronet_mish(depth = 100, 
+                                    num_classes = 100, 
+                                    growthRate = 12, 
+                                    compressionRate = 2)
         elif net == 'densenet_172_micronet':
             net = densenet_micronet(depth = 172, 
+                                    num_classes = 100, 
+                                    growthRate = 30, 
+                                    compressionRate = 2)
+        elif net == 'densenet_172_micronet_mish':
+            net = densenet_micronet_mish(depth = 172, 
                                     num_classes = 100, 
                                     growthRate = 30, 
                                     compressionRate = 2)

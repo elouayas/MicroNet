@@ -37,7 +37,7 @@ def get_transforms():
            transforms.RandomHorizontalFlip()]
     if cfg.dataloader['data_aug']:
         aug += [CIFAR10Policy()]
-    transform_train = transforms.Compose(aug + resize + to_tensor + cutout + normalize)
+    transform_train = transforms.Compose(aug + resize + cutout + to_tensor + normalize)
     transform_test  = transforms.Compose(resize + to_tensor + normalize)
     if cfg.dataloader['fast_aug']:
         transform_train.transforms.insert(0, Augmentation(fa_reduced_cifar10()))

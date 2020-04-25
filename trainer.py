@@ -18,6 +18,8 @@ from mask import Mask
 
 import config as cfg
 
+import k_means
+
 
 class Trainer():
      
@@ -29,9 +31,7 @@ class Trainer():
         self.early_stopping     = EarlyStopping(cfg.train, cfg.log['checkpoints_path'])
         self.use_binary_connect = self._init_binary_connect()
         self.use_pruning        = self._init_pruning()
-        self.state              = {'train_loss': 0, 'test_loss': 0,
-                                   'train_acc' : 0, 'test_acc' : 0,
-                                   'lr': self.model.optimizer.param_groups[0]['lr']}
+        self.kmeans             = k_means.K_means(model.net)
          
     def _init_binary_connect(self):
         if cfg.train['use_binary_connect']:
@@ -51,14 +51,17 @@ class Trainer():
         else:
             return False
 
+    # TODO: add kmeans option in a clean way
     def train(self, distillator):
         self.model.net.train()
         train_loss, correct, total = 0, 0, 0
         for inputs, labels in tqdm(self.trainloader):
+            # self.model.scheduler(self.model.optimizer)
             inputs, labels = inputs.to(self.model.device), labels.to(self.model.device)
             if self.use_binary_connect:
                 self.binary_connect.binarization()
             inputs, labels = Variable(inputs), Variable(labels)
+            #self.kmeans.save_params()
             self.model.optimizer.zero_grad()
             #outputs, layers = self.model.net(inputs)#### a changer
             r = np.random.rand(1)
@@ -76,6 +79,7 @@ class Trainer():
             if self.use_binary_connect:
                 self.binary_connect.clip()
             self.model.optimizer.step()
+            #self.kmeans.restore(2,40)
             train_loss += loss.item()
             _, predicted = outputs.max(1)
             total += labels.size(0)
@@ -149,7 +153,8 @@ class Trainer():
                 if self.early_stopping.early_stop:
                     print("Early stopping")
                     break
-        score2019(self.model)
+        # self.model.net.eval()
+        # score2019(self.model)
         
         
 

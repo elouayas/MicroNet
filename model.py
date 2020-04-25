@@ -23,6 +23,9 @@ from utils.optim import DelayedCosineAnnealingLR, RangerLars
 from utils.decorators import timed
 from utils.layers import Mish
 from utils.load import load_net
+from utils.schedulers import WarmupCosineLR
+
+from dataloader import get_transforms, get_datasets
 
 import config as cfg
 
@@ -31,7 +34,7 @@ class Model():
     
     @timed
     def __init__(self, net):
-        self.device     = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.device     = 'cuda:0' if torch.cuda.is_available() else 'cpu'
         self.mode       = cfg.model['mode']
         self.net        = self._init_net(net)
         self.criterion  = self._init_criterion()
@@ -52,7 +55,7 @@ class Model():
     def _init_net(self, net):
         net = load_net(cfg.dataset, net, cfg.model['quantize'])
         net = net.to(self.device)
-        if self.device == 'cuda':
+        if self.device == 'cuda:0':
             net = nn.DataParallel(net)
             cudnn.benchmark = True
         return net
@@ -71,8 +74,13 @@ class Model():
                             momentum     = 0.9,
                             nesterov     = True,
                             weight_decay = 5e-4)
-        elif self.mode == 'boosted':
+        elif self.mode == 'alternative':
             optimizer = RangerLars(self.net.parameters())
+            #optimizer = SGD(self.net.parameters(),
+            #    lr           = 0.1,
+            #    momentum     = 0.9,
+            #    nesterov     = True,
+            #    weight_decay = 5e-4)
         return optimizer
 
     def _init_scheduler(self):
@@ -85,6 +93,10 @@ class Model():
         elif self.mode == 'alternative':
             half_train = cfg.train['nb_epochs']//2
             scheduler = DelayedCosineAnnealingLR(self.optimizer, half_train, half_train)
+            #transform_train, transform_test = get_transforms()
+            #trainset, testset = get_datasets(transform_train, transform_test)
+            #scheduler = WarmupCosineLR(cfg.dataloader['train_batch_size'], len(trainset),
+            #                           cfg.train['nb_epochs'], 0.001, 0.1, 5, 0)
         return scheduler
 
     def binary_connect(self, bits):
@@ -97,5 +109,4 @@ class Model():
         return BinaryConnect(self.net)
 
     def load(self, path):
-        checkpoint = torch.load(path)
-        self.net.load_state_dict(checkpoint['state_dict'])
+        self.net.load_state_dict(torch.load(path))
