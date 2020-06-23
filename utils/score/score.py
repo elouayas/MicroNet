@@ -7,8 +7,8 @@ from .profile import *
 def score2019(model):
     input = torch.randn(1, 3, 32, 32)
     input = input.to(model.device)
-    print('IN SCORE 2019:', model.device)
-    macs, params = profile(model.net, inputs=(input, ))
+    #print('IN SCORE 2019:', model.device)
+    macs, params = profile(model.device, model.net, inputs=(input, ))
     return str2019(params, macs*2)
 
 

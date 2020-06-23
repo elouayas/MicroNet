@@ -1,0 +1,5 @@
+{
+    "python.pythonPath": "/home/almotasim/jupyter/env/bin/python3.7",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
+}

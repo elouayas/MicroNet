@@ -8,7 +8,6 @@ import os
 import torch
 from model import Model
 from trainer import Trainer
-from utils import save
 import config as cfg
 
 # +---------------------------------------------------------------------------------------+ #
@@ -31,7 +30,7 @@ def train():
     try:
         trainer.run()
     except KeyboardInterrupt:
-        save(cfg.dataset, cfg.get_experiment_name(), model)
+        model.save( interrupted = True)
 
 
 def test(path):

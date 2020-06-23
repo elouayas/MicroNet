@@ -81,13 +81,8 @@ class Distillator():
         elif self.inter_only:
             mult = inter_class
         for student_layer,teacher_layer in zips:
-            adj_teacher,A_final = self.representations_to_adj(teacher_layer,
-                                                              self.k,
-                                                              mult=mult)
-            adj_student,A_final = self.representations_to_adj(student_layer,
-                                                              self.k,
-                                                              A_final,
-                                                              mult=mult)
+            adj_teacher,A_final = self.representations_to_adj(teacher_layer, mult=mult)
+            adj_student,A_final = self.representations_to_adj(student_layer, A_final, mult=mult)
             adj_teacher_p = adj_teacher
             adj_student_p = adj_student
             for _ in range(self.power-1):
@@ -127,9 +122,10 @@ class Distillator():
                                                          distances_teacher,
                                                          reduction='none').mean()
         loss += loss_rkd if self.pool3_only else loss_rkd/3
+        return loss
 
 
-    def run(self, inputs, outputs, labels):
+    def run(self, inputs, outputs, labels, layers):
         num_classes = 10 if self.dataset == 'cifar10' else 100 
         one_hot_labels = self.to_one_hot(labels, num_classes) 
         intra_class = torch.matmul(one_hot_labels, one_hot_labels.T)
@@ -138,15 +134,13 @@ class Distillator():
         criterion = BatchMeanCrossEntropyWithLogSoftmax()
         loss = criterion(F.log_softmax(outputs,dim=-1),one_hot_labels)
         with torch.no_grad():
-            #TODO: adapter model pour qu'elle sorte output, layers
-            # teacher_output, teacher_layers = teacher(inputs)"""
-            teacher_output = self.teacher(inputs) # a supprimer quand la ligne au dessus sera fonctionel
+            teacher_output, teacher_layers = self.teacher(inputs)
             if self.lambda_hkd > 0:
                 loss = self.do_hkd(loss, outputs, teacher_output)
-            #if self.lambda_rkd > 0:
-            #   loss = self.do_rkd(loss, layers, teacher_layers)
-            #elif self.lambda_gkd > 0:
-            #   loss = self.do_gkd(loss, layers, teacher_layers, intra_class, inter_class)
+            if self.lambda_rkd > 0:
+               loss = self.do_rkd(loss, layers, teacher_layers)
+            elif self.lambda_gkd > 0:
+               loss = self.do_gkd(loss, layers, teacher_layers, intra_class, inter_class)
         return loss
 
 

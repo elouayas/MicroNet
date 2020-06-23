@@ -1,3 +1,4 @@
+import os
 from time import time
 
 
@@ -21,29 +22,55 @@ def timed(function):
     return wrapper
 
 
+
+# +-------------------------------------------------------------------------------------+ # 
+# |                                                                                     | #
+# |                                         SAVE                                        | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ #  
+
+def saveWrapper(function):
+    def wrapper(*args, **kwargs):
+        if not os.path.isdir('../checkpoints/'):
+            os.mkdir('../checkpoints/')    
+        if not os.path.isdir('../checkpoints/cifar100/'):
+            os.mkdir('../checkpoints/cifar100/')
+        if not os.path.isdir('../checkpoints/cifar10/'):
+            os.mkdir('../checkpoints/cifar10/')
+        interrupted = args[1]
+        output = function(*args, **kwargs)
+        if interrupted:
+            print()
+            print(80*'_')
+            print('Training Interrupted')
+            print('Current State saved.')
+        return output
+    return wrapper
+
+
 # +-------------------------------------------------------------------------------------+ # 
 # |                                                                                     | #
 # |                                         SUMMARY                                     | #
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ #
 
-def summary(dataset, model_config, train_config):
+def summary(cfg):
     def summary_decorator(function):
         def wrapper(*args, **kwargs):
             output = function(*args, **kwargs)
-            if model_config['mode'] == 'basic':
-                optimizer_name, scheduler_name = 'SGD', 'ROP'
-            elif model_config['mode'] == 'alternative':
-                optimizer_name, scheduler_name = 'Ranger + LARS', 'Delayed Cosine Annealing'
             print(80*'_')
             print('Training settings  : \n')
-            print(f'Dataset...................:  {dataset}')
-            print(f"Net.......................:  {model_config['net']}")
-            print(f'Optimizer.................:  {optimizer_name}')
-            print(f'Learning Rate Scheduler...:  {scheduler_name}')
-            print(f"Number of epochs..........:  {str(train_config['nb_epochs'])}")
-            print(f"Use Binary Connect........:  {str(train_config['use_binary_connect'])}")
-            print(f"Use Soft Pruning..........:  {str(train_config['use_pruning'])}")
+            print(f'Dataset...................:  {cfg.dataset}')
+            print(f"Net.......................:  {cfg.model['net']}")
+            print(f"Optimizer.................:  {cfg.optim['type']}")
+            print(f"LookAhead.................:  {str(cfg.optim['use_lookahead'])}")
+            print(f"Learning Rate Scheduler...:  {cfg.scheduler['type']}")
+            print(f"Decay.....................:  {str(cfg.scheduler['use_delay'])}")
+            print(f"Label Smoothing...........:  {str(cfg.model['label_smoothing'])}")
+            print(f"CutMix....................:  {str(cfg.train['use_cutmix'])}")
+            print(f"Number of epochs..........:  {str(cfg.train['nb_epochs'])}")
+            #print(f"Use Binary Connect........:  {str(train_config['use_binary_connect'])}")
+            #print(f"Use Soft Pruning..........:  {str(train_config['use_pruning'])}")
             print(80*'_')
             return output
         return wrapper

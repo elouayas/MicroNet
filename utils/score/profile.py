@@ -1,7 +1,6 @@
 import logging
 
 import torch
-from brevitas.core.quant import QuantType
 from torch.nn.modules.conv import _ConvNd
 import warnings
 
@@ -57,7 +56,7 @@ register_hooks = {
 }
 
 
-def profile(model, inputs, custom_ops=None, verbose=False):
+def profile(device, model, inputs, custom_ops=None, verbose=False):
     handler_collection = []
     if custom_ops is None:
         custom_ops = {}
@@ -73,8 +72,12 @@ def profile(model, inputs, custom_ops=None, verbose=False):
         m.register_buffer('total_ops', torch.zeros(1))
         m.register_buffer('total_params', torch.zeros(1))
 
+        m.total_params = m.total_params.to(device)
+        m.total_ops = m.total_ops.to(device)
+
         for p in m.parameters():
-            m.total_params += torch.Tensor([p.numel()])
+            tensor = torch.Tensor([p.numel()]).to(m.total_params.device)
+            m.total_params += tensor
 
         m_type = type(m)
         fn = None

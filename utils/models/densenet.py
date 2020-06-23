@@ -1,107 +1,198 @@
-'''DenseNet in PyTorch.'''
 import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.autograd import Variable
+
+from utils.layers import Swish, Mish, SimpleSelfAttention, ShakeDrop
+
+__all__ = ['densenet_micronet']
+
+def noop(x):
+    return x
 
 
 class Bottleneck(nn.Module):
-    def __init__(self, in_planes, growth_rate):
+    def __init__(self, inplanes, expansion=4, growthRate=12, dropRate=0,
+                 activation='relu', attention=False, sym=False, shkdrp = False , p_shakedrop = 1.0):
         super(Bottleneck, self).__init__()
-        self.bn1 = nn.BatchNorm2d(in_planes)
-        self.conv1 = nn.Conv2d(in_planes, 4*growth_rate, kernel_size=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(4*growth_rate)
-        self.conv2 = nn.Conv2d(4*growth_rate, growth_rate, kernel_size=3, padding=1, bias=False)
+        planes = expansion * growthRate
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        if attention:
+            self.bn2 = nn.BatchNorm2d(planes)
+            nn.init.constant_(self.bn2.weight, 0.)
+            self.attention = SimpleSelfAttention(self.expansion * planes,ks=1,sym=sym)
+        else:
+            self.bn2 = nn.BatchNorm2d(planes) 
+            self.attention = noop
+        self.conv2 = nn.Conv2d(planes, growthRate, kernel_size=3, padding=1, bias=False)
+        self.activation = self._init_activation(activation)
+        self.shkdrp = shkdrp
+        self.shake_drop = ShakeDrop(p_shakedrop)
+        self.dropRate = dropRate
+        
+
+    def _init_activation(self, activation):
+        if activation == 'relu':
+            return nn.ReLU(inplace=True)
+        elif activation == 'Swish':
+            return Swish()
+        else:
+            return Mish()
 
     def forward(self, x):
-        out = self.conv1(F.relu(self.bn1(x)))
-        out = self.conv2(F.relu(self.bn2(out)))
-        out = torch.cat([out,x], 1)
+        out = self.bn1(x)
+        out = self.activation(out)
+        out = self.conv1(out)
+        out = self.attention(self.bn2(out))
+        out = self.activation(out)
+        out = self.conv2(out)
+        if self.shkdrp:
+            out = self.shake_drop(out)
+        if self.dropRate > 0:
+            out = F.dropout(out, p=self.dropRate, training=self.training)
+        out = torch.cat((x, out), 1)
+        return out
+
+
+class BasicBlock(nn.Module):
+    def __init__(self, inplanes, expansion=1, growthRate=12, dropRate=0, activation='relu',shkdrp = False , p_shakedrop = 1.0):
+        super(BasicBlock, self).__init__()
+        planes = expansion * growthRate
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.conv1 = nn.Conv2d(inplanes, growthRate, kernel_size=3, padding=1, bias=False)
+        self.activation = self._init_activation(activation)
+        self.shkdrp = shkdrp
+        self.shake_drop = ShakeDrop(p_shakedrop)
+        self.dropRate = dropRate
+    
+    def _init_activation(self, activation):
+        if activation == 'relu':
+            return nn.ReLU(inplace=True)
+        elif activation == 'Swish':
+            return Swish()
+        else:
+            return Mish()
+
+    def forward(self, x):
+        out = self.bn1(x)
+        out = self.activation(out)
+        out = self.conv1(out)
+        if self.shkdrp:
+            out = self.shake_drop(out)
+        if self.dropRate > 0:
+            out = F.dropout(out, p=self.dropRate, training=self.training)
+        out = torch.cat((x, out), 1)
         return out
 
 
 class Transition(nn.Module):
-    def __init__(self, in_planes, out_planes):
+    def __init__(self, inplanes, outplanes, activation):
         super(Transition, self).__init__()
-        self.bn = nn.BatchNorm2d(in_planes)
-        self.conv = nn.Conv2d(in_planes, out_planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(inplanes)
+        self.conv1 = nn.Conv2d(inplanes, outplanes, kernel_size=1, bias=False)
+        self.activation = self._init_activation(activation)
+
+    def _init_activation(self, activation):
+        if activation == 'relu':
+            return nn.ReLU(inplace=True)
+        elif activation == 'Swish':
+            return Swish()
+        else:
+            return Mish()
 
     def forward(self, x):
-        out = self.conv(F.relu(self.bn(x)))
+        out = self.bn1(x)
+        out = self.activation(out)
+        out = self.conv1(out)
         out = F.avg_pool2d(out, 2)
         return out
 
 
-class DenseNet(nn.Module):
-    def __init__(self, block, nblocks, growth_rate=12, reduction=0.5, num_classes=100):
-        super(DenseNet, self).__init__()
-        self.growth_rate = growth_rate
+class DenseNet_MicroNet(nn.Module):
 
-        num_planes = 2*growth_rate
-        self.conv1 = nn.Conv2d(3, num_planes, kernel_size=3, padding=1, bias=False)
+    def __init__(self, depth=22, block=Bottleneck, 
+                 dropRate=0, num_classes=100, growthRate=12, compressionRate=2,
+                 init = 'Default', activation='relu', attention=False, sym=False, shakedrop = False):
+        super(DenseNet_MicroNet, self).__init__()
 
-        self.dense1 = self._make_dense_layers(block, num_planes, nblocks[0])
-        num_planes += nblocks[0]*growth_rate
-        out_planes = int(math.floor(num_planes*reduction))
-        self.trans1 = Transition(num_planes, out_planes)
-        num_planes = out_planes
+        assert (depth - 4) % 3 == 0, 'depth should be 3n+4'
+        n = (depth - 4) / 3 if block == BasicBlock else (depth - 4) // 6
 
-        self.dense2 = self._make_dense_layers(block, num_planes, nblocks[1])
-        num_planes += nblocks[1]*growth_rate
-        out_planes = int(math.floor(num_planes*reduction))
-        self.trans2 = Transition(num_planes, out_planes)
-        num_planes = out_planes
+        self.growthRate = growthRate
+        self.dropRate = dropRate
+        self.shakedrop = shakedrop
 
-        self.dense3 = self._make_dense_layers(block, num_planes, nblocks[2])
-        num_planes += nblocks[2]*growth_rate
-        out_planes = int(math.floor(num_planes*reduction))
-        self.trans3 = Transition(num_planes, out_planes)
-        num_planes = out_planes
+        # self.inplanes is a global variable used across multiple
+        # helper functions
+        self.inplanes = growthRate * 2 
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=3, padding=1,
+                               bias=False)
+        self.dense1 = self._make_denseblock(block, n, activation, attention, sym)
+        self.trans1 = self._make_transition(compressionRate, activation)
+        self.dense2 = self._make_denseblock(block, n, activation, attention, sym)
+        self.trans2 = self._make_transition(compressionRate, activation)
+        self.dense3 = self._make_denseblock(block, n, activation, attention, sym)
+        self.bn = nn.BatchNorm2d(self.inplanes)
+        self.activation = self._init_activation(activation)
+        self.avgpool = nn.AvgPool2d(8)
+        self.fc = nn.Linear(self.inplanes, num_classes)
 
-        self.dense4 = self._make_dense_layers(block, num_planes, nblocks[3])
-        num_planes += nblocks[3]*growth_rate
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
 
-        self.bn = nn.BatchNorm2d(num_planes)
-        self.linear = nn.Linear(num_planes, num_classes)
+    def _init_activation(self, activation):
+        if activation == 'relu':
+            return nn.ReLU(inplace=True)
+        elif activation == 'Swish':
+            return Swish()
+        else:
+            return Mish()
 
-    def _make_dense_layers(self, block, in_planes, nblock):
+    def _make_denseblock(self, block, blocks, activation, attention, sym):
         layers = []
-        for i in range(nblock):
-            layers.append(block(in_planes, self.growth_rate))
-            in_planes += self.growth_rate
+        for i in range(blocks):
+            
+            # Currently we fix the expansion ratio as the default value
+            layers.append(block(self.inplanes, growthRate=self.growthRate, dropRate=self.dropRate,
+                                activation=activation, attention=attention, sym=sym, shkdrp=self.shakedrop))
+            self.inplanes += self.growthRate
+
         return nn.Sequential(*layers)
 
+    def _make_transition(self, compressionRate, activation):
+        inplanes = self.inplanes
+        outplanes = int(math.floor(self.inplanes // compressionRate))
+        self.inplanes = outplanes
+        return Transition(inplanes, outplanes, activation)
+
+
     def forward(self, x):
-        out = self.conv1(x)
-        out = self.trans1(self.dense1(out))
-        out = self.trans2(self.dense2(out))
-        out = self.trans3(self.dense3(out))
-        out = self.dense4(out)
-        out = F.avg_pool2d(F.relu(self.bn(out)), 4)
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        return out
+        x = self.conv1(x)
+        x = self.trans1(self.dense1(x)) 
+        pool1 = x
+        x = self.trans2(self.dense2(x))
+        pool2 = x 
+        x = self.dense3(x)
+        x = self.bn(x)
+        x = self.activation(x)
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        pool3 = x
+        x = self.fc(x)
+        return x, [pool1, pool2, pool3]
 
-def DenseNet121():
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=32)
 
-def DenseNet169():
-    return DenseNet(Bottleneck, [6,12,32,32], growth_rate=32)
 
-def DenseNet201():
-    return DenseNet(Bottleneck, [6,12,48,32], growth_rate=32)
-
-def DenseNet161():
-    return DenseNet(Bottleneck, [6,12,36,24], growth_rate=48)
-
-def densenet_cifar():
-    return DenseNet(Bottleneck, [6,12,24,16], growth_rate=12)
-
-def test():
-    net = densenet_cifar()
-    x = torch.randn(1,3,32,32)
-    y = net(x)
-    print(y)
-
-# test()
+def densenet_micronet(**kwargs):
+    """
+    Constructs a ResNet model.
+    """
+    return DenseNet_MicroNet(**kwargs)

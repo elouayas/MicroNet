@@ -13,9 +13,9 @@ multiply_adds = 1
 mul_quantize_ratio = 0.2 / 3.7
 add_quantize_ratio = 0.03 / 0.9
 
-
 def zero_ops(m, x, y):
-    m.total_ops += torch.Tensor([int(0)])
+    tensor = torch.Tensor([int(0)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
@@ -27,7 +27,8 @@ def count_convNd(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
     # N x Cout x H x W x  (Cin x Kw x Kh + bias)
     total_ops = y.nelement() * (m.in_channels // m.groups * kernel_ops + bias_ops)
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 def count_convNd_ver2(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
     x = x[0]
@@ -40,7 +41,9 @@ def count_convNd_ver2(m: _ConvNd, x: (torch.Tensor,), y: torch.Tensor):
         # Cout x 1
         kernel_ops += + m.bias.nelement()
     # x N x H x W x Cout x (Cin x Kw x Kh + bias)
-    m.total_ops += torch.Tensor([int(output_size * kernel_ops)])
+
+    tensor = torch.Tensor([int(output_size * kernel_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_bn(m, x, y):
@@ -51,7 +54,8 @@ def count_bn(m, x, y):
         # subtract, divide, gamma, beta
         total_ops = 2 * nelements
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_relu(m, x, y):
@@ -59,7 +63,8 @@ def count_relu(m, x, y):
 
     nelements = x.numel()
 
-    m.total_ops += torch.Tensor([int(nelements)])
+    tensor = torch.Tensor([int(nelements)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_softmax(m, x, y):
@@ -72,7 +77,8 @@ def count_softmax(m, x, y):
     total_div = nfeatures
     total_ops = batch_size * (total_exp + total_add + total_div)
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_avgpool(m, x, y):
@@ -83,7 +89,8 @@ def count_avgpool(m, x, y):
     num_elements = y.numel()
     total_ops = kernel_ops * num_elements
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_adap_avgpool(m, x, y):
@@ -94,7 +101,8 @@ def count_adap_avgpool(m, x, y):
     num_elements = y.numel()
     total_ops = kernel_ops * num_elements
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 # TODO: verify the accuracy
@@ -123,7 +131,8 @@ def count_upsample(m, x, y):
         # can viewed as 2 bilinear + 1 linear
         total_ops = y.nelement() * (13 * 2 + 5)
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
 
 
 def count_linear(m, x, y):
@@ -134,4 +143,5 @@ def count_linear(m, x, y):
     num_elements = y.numel()
     total_ops = (total_mul + total_add) * num_elements
 
-    m.total_ops += torch.Tensor([int(total_ops)])
+    tensor = torch.Tensor([int(total_ops)]).to(m.total_ops.device)
+    m.total_ops += tensor
