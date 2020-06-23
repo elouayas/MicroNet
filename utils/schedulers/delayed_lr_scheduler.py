@@ -1,7 +1,7 @@
 from torch.optim.lr_scheduler import _LRScheduler, CosineAnnealingLR
 
 class DelayerScheduler(_LRScheduler):
-	""" Starts with a flat lr schedule until it reaches N epochs the applies a scheduler 
+	""" Starts with a  lr scheduler until it reaches N epochs the applies another scheduler 
 	Args:
 		optimizer (Optimizer): Wrapped optimizer.
 		delay_epochs: number of epochs to keep the initial lr until starting aplying the scheduler

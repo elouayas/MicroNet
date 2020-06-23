@@ -1,19 +1,20 @@
-####
-# CODE TAKEN FROM https://github.com/lonePatient/lookahead_pytorch
-# Original paper: https://arxiv.org/abs/1907.08610
-####
-# Lookahead implementation from https://github.com/rwightman/pytorch-image-models/blob/master/timm/optim/lookahead.py
 
-""" Lookahead Optimizer Wrapper.
-Implementation modified from: https://github.com/alphadl/lookahead.pytorch
-Paper: `Lookahead Optimizer: k steps forward, 1 step back` - https://arxiv.org/abs/1907.08610
+""" 
+Lookahead Optimizer Wrapper.
+
+Lookahead implementation from:
+    * https://github.com/rwightman/pytorch-image-models/blob/master/timm/optim/lookahead.py
+
+Paper: "Lookahead Optimizer: k steps forward, 1 step back" - https://arxiv.org/abs/1907.08610
 """
+
 import torch
 from torch.optim.optimizer import Optimizer
 from collections import defaultdict
 
 
 class Lookahead(Optimizer):
+    
     def __init__(self, base_optimizer, alpha=0.5, k=6):
         if not 0.0 <= alpha <= 1.0:
             raise ValueError(f'Invalid slow update rate: {alpha}')
@@ -95,8 +96,3 @@ class Lookahead(Optimizer):
             for name, default in self.defaults.items():
                 for group in self.param_groups:
                     group.setdefault(name, default)
-
-
-def LookaheadAdam(params, alpha=0.5, k=6, *args, **kwargs):
-    adam = Adam(params, *args, **kwargs)
-    return Lookahead(adam, alpha, k)
