@@ -8,11 +8,18 @@
 
 
 # Data from Training
-checkpoints/
+lightning_logs/
 data/
-runs/
+!utils/data
 *.pt
+**.pt
 
-
-
+# Vscode
+.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
 

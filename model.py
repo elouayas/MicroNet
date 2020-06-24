@@ -1,99 +1,101 @@
-"""
-Model Class for Training Pipeline.
-Used as the model attribute of the Trainer Class.
-"""
-
+import numpy as np
 import torch
-import torch.nn as nn
-from utils import DenseNet
-from utils.layers import LabelSmoothingCrossEntropy
-from torch.optim import SGD
-from utils.optim import *
-from torch.optim.lr_scheduler import (ReduceLROnPlateau, MultiStepLR,
-                                      CosineAnnealingLR, CosineAnnealingWarmRestarts)
-from utils.schedulers import *
-from utils.decorators import timed, saveWrapper
-import config as cfg
+from torch import nn
+from torch.nn import functional as F
+from pytorch_lightning.core.lightning import LightningModule
+from utils.data import get_train_dataloader, get_val_dataloader
+from utils.model import DenseNet
+from utils.model.init import *
+from utils.model.layers import Cutmix
+from utils import Distillator
 
 
-class Model():
-    
-    @timed
-    def __init__(self, net_name):
-        self.net        = DenseNet.from_name(net_name)
-        self.optimizer  = self.init_optimizer(cfg.optim)
-        self.scheduler  = self.init_scheduler(self.optimizer, cfg.scheduler,
-                                         cfg.dataloader['train_batch_size'], cfg.train['nb_epochs'])
-        self.criterion  = nn.CrossEntropyLoss()
-        self.num_params = self.get_num_params(self.net)
+class Model(LightningModule):
+    """
+        LightningModule handling everything training related.
+        Pytorch Lighning will be referred as Lighning in all the following. 
+        Many attributes and method used here aren't explicitely defined here
+        but comes from the LightningModule class.
+        This behavior should be specify in a docstring.
+        Please refer to the Lightning documentation for further details.
 
-    def get_num_params(self, net, display_all_modules=False):
-        total_num_params = 0
-        for n, p in net.named_parameters():
-            num_params = 1
-            for s in p.shape:
-                num_params *= s
-            if display_all_modules: print(f"{n}: {num_params}")
-            total_num_params += num_params
-        return total_num_params
+        Note that Lighning handles tensorboard logging, early stopping, and auto checkpoints
+        for this class.
+    """
 
-    def init_optimizer(self, net, config):
-        if config['type'] == 'SGD':
-            optimizer = SGD(net.parameters(),
-                            lr           = config['params']['lr'],
-                            momentum     = config['params']['momentum'],
-                            nesterov     = config['params']['nesterov'],
-                            weight_decay = config['params']['weight_decay'])
+    def __init__(self, config):
+        """
+            config contains all the hyperparameters defined in config.py
+            Contains the following dicts:
+                * config.dataset
+                * config.dataloader 
+                * config.model
+                * config.optim
+                * config.scheduler
+                * config.train
+                * config.teacher
+            Please refer to config.py to see what each of this dict contains.
+        """
+        super().__init__()
+        self.config      = config
+        self.net         = DenseNet.from_name(config.dataset, config.model['net'])
+        self.criterion   = init_criterion(self.config.model)
+        self.distillator = self._init_distillation()
+
+    def _init_distillation(self):
+        """ returns another instance of the Model class,
+            with an already trained net used as a teacher.
+            The distillation params are accessibles via self.config.teacher
+            The loading (call to .load_from_checkpoint()) is handled by Lightning) 
+        """
+        if not self.config.train['distillation']: 
+            return None
+        teacher = self(self.config.teacher['net']) 
+        teacher.load_from_checkpoint(self.config.teacher['teacher_path'])
+        return Distillator(self.config.dataset, teacher, self.config.teacher)
+
+    def train_dataloader(self):
+        return get_train_dataloader(self.config.dataset, self.config.dataloader)
+
+    def val_dataloader(self):
+        return get_val_dataloader(self.config.dataset, self.config.dataloader) 
+
+    def configure_optimizers(self): 
+        optimizer = init_optimizer(self.net, self.config.optim)
+        scheduler = init_scheduler(optimizer, self.config.scheduler)
+        return [optimizer], [scheduler]
+
+    def forward(self, x): 
+        return self.net(x)
+
+    def cutmix(self, inputs, targets):
+        lam, inputs, target_a, target_b = Cutmix(inputs, targets, self.config.train['cutmix_beta'])
+        outputs, layers = self(inputs)
+        loss_a, loss_b  = self.criterion(outputs, target_a), self.criterion(outputs, target_b)
+        return loss_a * lam + loss_b * (1. - lam)
+
+    def training_step(self, batch, batch_idx):
+        inputs, targets = batch
+        r = np.random.rand(1)
+        if self.config.train['use_cutmix'] and r < self.config.train['cutmix_p']:
+            loss = self.cutmix(inputs, targets)
         else:
-            optimizer = Ralamb(net.parameters(),
-                            lr           = config['params']['lr'],
-                            betas        = config['params']['betas'],
-                            eps          = config['params']['eps'],
-                            weight_decay = config['params']['weight_decay'])
-        if config['use_lookahead']:
-            return Lookahead(optimizer,
-                            alpha = config['lookahead']['alpha'],
-                            k     = config['lookahead']['k'])
+            outputs, layers = self(inputs) 
+        if self.config.train['distillation']:
+            loss = self.distillator.run(inputs, outputs, targets, layers)
         else:
-            return optimizer
+            loss = self.criterion(outputs, targets)
+        logs = {'loss': loss}
+        return {'loss': loss, 'logs': logs} 
 
-    def init_scheduler(self, optimizer, config, batch_size, epochs):
-        if config['type'] == 'ROP':
-            scheduler = ReduceLROnPlateau(optimizer,
-                                        mode     = config['params']['mode'],
-                                        factor   = config['params']['factor'],
-                                        patience = config['params']['patience'],
-                                        verbose  = config['params']['verbose'])
-        elif config['type'] == 'MultiStep':
-            scheduler = MultiStepLR(optimizer,
-                                    milestones = config['params']['milestones'],
-                                    gamma      = config['params']['gamma'],
-                                    last_epoch = config['params']['last_epoch'])
-        elif config['type'] == 'Cosine':
-            scheduler = CosineAnnealingLR(optimizer, config['params']['epochs'])
-        elif config['type'] == 'WarmRestartsCosine':
-            scheduler = CosineAnnealingWarmRestarts(optimizer,
-                                    T_0        = config['params']['T_0'],
-                                    T_mult     = config['params']['T_mult'],
-                                    eta_min    = config['params']['eta_min'],
-                                    last_epoch = config['params']['last_epoch'])
-        else:
-            scheduler = WarmupCosineLR(batch_size, 50000, epochs,
-                                    config['params']['base_lr'], config['params']['target_lr'],
-                                    config['params']['warm_up_epoch'], config['params']['cur_epoch'])
-        if config['use_delay']:
-            return DelayerScheduler(optimizer, config['delay']['delay_epochs'], scheduler)
-        else:
-            return scheduler
+    def validation_step(self, batch, batch_idx):
+        inputs, targets = batch
+        outputs, layers = self(inputs) 
+        loss = self.criterion(outputs, targets)
+        logs = {'val_loss': loss}
+        return {'val_loss': loss, 'logs': logs}
 
-    def init_criterion(self, config):
-        if config['label_smoothing']:
-            return LabelSmoothingCrossEntropy(smoothing=config['smoothing'],
-                                              reduction=config['reduction'])
-        else:
-            return nn.CrossEntropyLoss()
-
-    
-
-
-
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        logs = {'val_loss': avg_loss}
+        return {'val_loss': avg_loss, 'log': logs}

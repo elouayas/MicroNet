@@ -22,6 +22,7 @@ class Bottleneck(nn.Module):
         planes = expansion * growthRate
         self.bn1        = nn.BatchNorm2d(inplanes)
         self.conv1      = nn.Conv2d(inplanes, planes,     kernel_size=1, bias=False)
+        self.bn2        = nn.BatchNorm2d(planes)
         self.conv2      = nn.Conv2d(  planes, growthRate, kernel_size=3, padding=1, bias=False)
         self.activation = nn.ReLU(inplace=True)
         self.dropRate   = dropRate
@@ -124,7 +125,7 @@ class DenseNet(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def _make_denseblock(self, block, blocks, activation, attention, sym):
+    def _make_denseblock(self, block, blocks):
         layers = []
         for i in range(blocks):
             # Currently we fix the expansion ratio as the default value
@@ -132,11 +133,11 @@ class DenseNet(nn.Module):
             self.inplanes += self.growthRate
         return nn.Sequential(*layers)
 
-    def _make_transition(self, compressionRate, activation):
+    def _make_transition(self, compressionRate):
         inplanes = self.inplanes
         outplanes = int(math.floor(self.inplanes // compressionRate))
         self.inplanes = outplanes
-        return Transition(inplanes, outplanes, activation)
+        return Transition(inplanes, outplanes)
 
     def forward(self, x):
         "the pool variables are used by the graph distillation (GKD)"
@@ -155,9 +156,12 @@ class DenseNet(nn.Module):
         return x, [pool1, pool2, pool3]
 
     @classmethod
-    def from_name(cls, name):
+    def from_name(cls, dataset, name):
         "create a densenet model according to the name"
+        num_classes = 10 if dataset == 'cifar10' else 100 
         if   name == "densenet100":
-            return cls(depth = 100, growthRate = 12, compressionRate = 2)
+            return cls(num_classes = num_classes,
+                       depth = 100, growthRate = 12, compressionRate = 2)
         elif name == "densenet172":
-            return cls(depth = 172, growthRate = 30, compressionRate = 2)
+            return cls(num_classes = num_classes,
+                       depth = 172, growthRate = 30, compressionRate = 2)

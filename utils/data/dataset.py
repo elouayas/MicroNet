@@ -9,7 +9,8 @@ import numpy as np
 import sys
 import pickle
 from torch.utils.data import Dataset
-from utils.dataset.autoaugment import AutoAugment
+from torchvision.datasets.utils import check_integrity, download_and_extract_archive
+from utils.data.autoaugment import AutoAugment, default_policies
 from torchvision import transforms
 
 
@@ -56,13 +57,14 @@ class CIFAR10(Dataset):
         'md5': '5ff9c542aee3614f3951f8cda6e48888',
     }
 
-    def __init__(self, root, train = True, scale = 1.0, 
+    def __init__(self, root, download = True, train = True, scale = 1.0, 
                  mean = [0.49139968, 0.48215841, 0.44653091],
                  var  = [0.24703223, 0.24348513, 0.26158784],
-                 policies = policies, cutout = True, augnum = 2):
+                 policies = default_policies, augnum = 2):
         self.root = os.path.expanduser(root)
+        if download:
+            self.download()
         self.train = train  # training set or test set
-        self.cutout = cutout
         self.mean = np.asarray(mean)
         self.var = np.asarray(var)       
         if self.train:
@@ -121,6 +123,21 @@ class CIFAR10(Dataset):
 
     def __len__(self):
         return len(self.data)
+
+    def _check_integrity(self):
+        root = self.root
+        for fentry in (self.train_list + self.test_list):
+            filename, md5 = fentry[0], fentry[1]
+            fpath = os.path.join(root, self.base_folder, filename)
+            if not check_integrity(fpath, md5):
+                return False
+        return True
+
+    def download(self):
+        if self._check_integrity():
+            print('Files already downloaded and verified')
+            return
+        download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
 
 
 # +-------------------------------------------------------------------------------------+ # 
