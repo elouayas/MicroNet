@@ -35,12 +35,17 @@ class Model(LightningModule):
                 * config.train
                 * config.teacher
             Please refer to config.py to see what each of this dict contains.
+            All this params are saved alltogether with the weights 
+            Hence one can load an already trained model and acces all its hyperparameters.
         """
         super().__init__()
         self.config      = config
         self.net         = DenseNet.from_name(config.dataset, config.model['net'])
         self.criterion   = init_criterion(self.config.model)
         self.distillator = self._init_distillation()
+        self.save_hyperparameters({'dataset': config.dataset, 'dataloader': config.dataloader,
+                                   'train': config.train, 'model': config.model,
+                                   'optim': config.optim, 'scheduler': config.scheduler})
 
     def _init_distillation(self):
         """ returns another instance of the Model class,

@@ -14,3 +14,6 @@ lr_logger = LearningRateLogger()
 
 trainer = Trainer.from_argparse_args(args, callbacks = [lr_logger])
 trainer.fit(model)  
+
+
+print(model.hparams)
