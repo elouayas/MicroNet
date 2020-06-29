@@ -1,5 +1,4 @@
-
-""" 
+"""
 Lookahead Optimizer Wrapper.
 
 Lookahead implementation from:
@@ -8,17 +7,19 @@ Lookahead implementation from:
 Paper: "Lookahead Optimizer: k steps forward, 1 step back" - https://arxiv.org/abs/1907.08610
 """
 
-import torch
-from torch.optim.optimizer import Optimizer
 from collections import defaultdict
+import torch
+from torch.optim import Optimizer
 
 
 class Lookahead(Optimizer):
-    
+    """ Lookahead optimizer from https://arxiv.org/abs/1907.08610 """
+
     def __init__(self, base_optimizer, alpha=0.5, k=6):
+        super(Lookahead, self).__init__()
         if not 0.0 <= alpha <= 1.0:
             raise ValueError(f'Invalid slow update rate: {alpha}')
-        if not 1 <= k:
+        if k < 1:
             raise ValueError(f'Invalid lookahead steps: {k}')
         defaults = dict(lookahead_alpha=alpha, lookahead_k=k, lookahead_step=0)
         self.base_optimizer = base_optimizer
@@ -32,6 +33,7 @@ class Lookahead(Optimizer):
                 group.setdefault(name, default)
 
     def update_slow(self, group):
+        """ update the slow weights """
         for fast_p in group["params"]:
             if fast_p.grad is None:
                 continue
@@ -44,12 +46,11 @@ class Lookahead(Optimizer):
             fast_p.data.copy_(slow)
 
     def sync_lookahead(self):
+        """ apply update to slow weights for all params groups """
         for group in self.param_groups:
             self.update_slow(group)
 
     def step(self, closure=None):
-        # print(self.k)
-        # assert id(self.param_groups) == id(self.base_optimizer.param_groups)
         loss = self.base_optimizer.step(closure)
         for group in self.param_groups:
             group['lookahead_step'] += 1

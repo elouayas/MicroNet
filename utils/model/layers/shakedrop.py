@@ -1,12 +1,14 @@
-# -*- coding: utf-8 -*-
+""" See https://arxiv.org/abs/1802.02375 """
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 
 
 class ShakeDropFunction(torch.autograd.Function):
+
+    """ Implements the forward and backward pass function, 
+        to be used by the ShakeDrop class """
 
     @staticmethod
     def forward(ctx, x, training=True, p_drop=0.5, alpha_range=[-1, 1]):
@@ -35,6 +37,8 @@ class ShakeDropFunction(torch.autograd.Function):
 
 
 class ShakeDrop(nn.Module):
+
+    """ ShakeDrop layer """
 
     def __init__(self, p_drop=0.5, alpha_range=[-1, 1]):
         super(ShakeDrop, self).__init__()

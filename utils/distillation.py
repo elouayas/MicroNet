@@ -1,43 +1,39 @@
-import os
-import sys
-import time
-import math
+""" Class implementing 3 knowledge distillation methods """
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.init as init
-import torch 
 import numpy as np
 
-import torchvision
-import torchvision.transforms as transforms
-
-from utils.model.layers.criterion import *
+from utils.model.layers.criterion import (BatchMeanCrossEntropyWithLogSoftmax,
+                                          BatchMeanKLDivWithLogSoftmax)
 
 
 
 class Distillator():
-    
-    def __init__(self, dataset, teacher, teacher_config):
+
+    """ Adapted from https://arxiv.org/abs/1911.03080 """
+
+    def __init__(self, dataset, teacher, config):
         self.dataset    = dataset
         self.teacher    = teacher.net
-        self.lambda_hkd = teacher_config['lambda_hkd']
-        self.lambda_gkd = teacher_config['lambda_gkd']
-        self.lambda_rkd = teacher_config['lambda_rkd']
-        self.pool3_only = teacher_config['pool3_only']
-        self.temp       = teacher_config['temp']
-        self.power      = teacher_config['power']
-        self.k          = teacher_config['k']
-        self.intra_only = teacher_config['intra_only']
-        self.inter_only = teacher_config['inter_only']
+        self.lambda_hkd = config.lambda_hkd
+        self.lambda_gkd = config.lambda_gkd
+        self.lambda_rkd = config.lambda_rkd
+        self.pool3_only = config.pool3_only
+        self.temp       = config.temp
+        self.power      = config.power
+        self.k          = config.k
+        self.intra_only = config.intra_only
+        self.inter_only = config.inter_only
 
     def get_distances(self, representations):
+        """ returns distance of network's representations """
         rview = representations.view(representations.size(0),-1)
         distances = torch.cdist(rview,rview,p=2)
         return distances
 
-    def representations_to_adj(self, representations, A_final=None, mult=None):
+    def representations_to_adj(self, representations, adj_matrix=None, mult=None):
+        """ from network's representations constructs a similarity matric """
         rview = representations.view(representations.size(0),-1)
         rview =  torch.nn.functional.normalize(rview, p=2, dim=1)
         adj = torch.mm(rview,torch.t(rview))
@@ -46,64 +42,64 @@ class Distillator():
         degree = torch.pow(adj.sum(dim=1),-0.5)
         degree_matrix = torch.diag(degree)
         adj = torch.matmul(degree_matrix,torch.matmul(adj,degree_matrix))
-        if type(mult) == torch.Tensor:
+        if isinstance(mult) == torch.Tensor:
             adj = adj*mult
         if self.k != 128:
-            if type(A_final) == torch.Tensor:
-                adj = adj*A_final
+            if isinstance(adj_matrix) == torch.Tensor:
+                adj = adj*adj_matrix
             else:
-                y, ind = torch.sort(adj, 1)
-                A = torch.zeros(*y.size()).cuda()
-                k_biggest = ind[:,-self.k:].data
-                for index1,value in enumerate(k_biggest):
-                    A_line = A[index1]
-                    A_line[value] = 1
-                A_final = torch.min(torch.ones(*y.size()).cuda(),A+torch.t(A))
-                adj = adj*A_final
-        return adj,A_final
+                data, ind = torch.sort(adj, 1)
+                canvas = torch.zeros(*data.size()).cuda()
+                adj_matrix = torch.min(torch.ones(*data.size()).cuda(), canvas+torch.t(canvas))
+                adj = adj*adj_matrix
+        return adj,adj_matrix
 
 
     def to_one_hot(self, inpt, num_classes):
+        """ classic one hot encoding of n  classes """
         y_onehot = torch.cuda.FloatTensor(inpt.size(0), num_classes)
         y_onehot.zero_()
         y_onehot.scatter_(1, inpt.unsqueeze(1), 1)
         return y_onehot
-    
+
     def do_gkd(self, loss, layers, teacher_layers, intra_class, inter_class):
+        """ perform a graph knowledge distillation (https://arxiv.org/abs/1911.03080) """
         loss_gkd = 0
         if not self.pool3_only:
             zips = zip(layers,teacher_layers)
         else:
-            zips = zip([layers[-1]],[teacher_layers[-1]]) 
+            zips = zip([layers[-1]],[teacher_layers[-1]])
         mult = None
         if self.intra_only:
             mult = intra_class
         elif self.inter_only:
             mult = inter_class
         for student_layer,teacher_layer in zips:
-            adj_teacher,A_final = self.representations_to_adj(teacher_layer, mult=mult)
-            adj_student,A_final = self.representations_to_adj(student_layer, A_final, mult=mult)
+            adj_teacher, adj_matrix = self.representations_to_adj(teacher_layer, mult=mult)
+            adj_student, adj_matrix = self.representations_to_adj(student_layer, adj_matrix,
+                                                                  mult=mult)
             adj_teacher_p = adj_teacher
             adj_student_p = adj_student
             for _ in range(self.power-1):
                 adj_teacher_p = torch.matmul(adj_teacher_p,adj_teacher)
                 adj_student_p = torch.matmul(adj_student_p,adj_student)
-            loss_gkd += self.lambda_gkd*F.mse_loss(adj_teacher_p,
-                                                   adj_student_p,
+            loss_gkd += self.lambda_gkd*F.mse_loss(adj_teacher_p, adj_student_p,
                                                    reduction='none').sum()
         loss += loss_gkd if self.pool3_only else loss_gkd/3
         return loss
 
 
     def do_hkd(self, loss, outputs, teacher_outputs):
-        p = F.softmax(teacher_outputs/self.temp,dim=-1)
+        """ perform a classic knowledge distillation """
+        proba = F.softmax(teacher_outputs/self.temp,dim=-1)
         log_q = F.log_softmax(outputs/self.temp,dim=-1)
         log_p = F.log_softmax(teacher_outputs/self.temp,dim=-1)
-        hkd_loss = BatchMeanKLDivWithLogSoftmax()(p=p,log_q=log_q,log_p=log_p)
+        hkd_loss = BatchMeanKLDivWithLogSoftmax()(p=proba,log_q=log_q,log_p=log_p)
         loss += self.lambda_hkd*hkd_loss
         return loss
 
     def do_rkd(self, loss, layers, teacher_layers):
+        """ perform a relational knowledge distillation """
         loss_rkd = 0
         if not self.pool3_only:
             zips = zip(layers,teacher_layers)
@@ -126,8 +122,10 @@ class Distillator():
 
 
     def run(self, inputs, outputs, labels, layers):
-        num_classes = 10 if self.dataset == 'cifar10' else 100 
-        one_hot_labels = self.to_one_hot(labels, num_classes) 
+        """ takes the output of a forward pass in the student,
+            and perform the knowledge distillation """
+        num_classes = 10 if self.dataset == 'cifar10' else 100
+        one_hot_labels = self.to_one_hot(labels, num_classes)
         intra_class = torch.matmul(one_hot_labels, one_hot_labels.T)
         inter_class = 1 - intra_class
         labels = one_hot_labels.argmax(dim=1)
@@ -138,9 +136,7 @@ class Distillator():
             if self.lambda_hkd > 0:
                 loss = self.do_hkd(loss, outputs, teacher_output)
             if self.lambda_rkd > 0:
-               loss = self.do_rkd(loss, layers, teacher_layers)
+                loss = self.do_rkd(loss, layers, teacher_layers)
             elif self.lambda_gkd > 0:
-               loss = self.do_gkd(loss, layers, teacher_layers, intra_class, inter_class)
+                loss = self.do_gkd(loss, layers, teacher_layers, intra_class, inter_class)
         return loss
-
-

@@ -1,20 +1,20 @@
 """
 Adapted from https://github.com/wps712/MicroNetChallenge/tree/cifar100
 """
-
-from PIL import Image
+import sys
+import pickle
 import os
 import os.path
 import numpy as np
-import sys
-import pickle
 from torch.utils.data import Dataset
 from torchvision.datasets.utils import check_integrity, download_and_extract_archive
-from utils.data.autoaugment import AutoAugment, default_policies
 from torchvision import transforms
+from utils.data.autoaugment import AutoAugment
+from utils.data.policies import AUGMENTATION_POLICIES
 
 
-# +-------------------------------------------------------------------------------------+ # 
+
+# +-------------------------------------------------------------------------------------+ #
 # |                                                                                     | #
 # |                                       CIFAR 10                                      | #
 # |                                                                                     | #
@@ -57,33 +57,33 @@ class CIFAR10(Dataset):
         'md5': '5ff9c542aee3614f3951f8cda6e48888',
     }
 
-    def __init__(self, root, download = True, train = True, scale = 1.0, 
+    def __init__(self, root, download = True, train = True, scale = 1.0,
                  mean = [0.49139968, 0.48215841, 0.44653091],
                  var  = [0.24703223, 0.24348513, 0.26158784],
-                 policies = default_policies, augnum = 2):
+                 policies = AUGMENTATION_POLICIES, augnum = 2):
         self.root = os.path.expanduser(root)
         if download:
             self.download()
         self.train = train  # training set or test set
         self.mean = np.asarray(mean)
-        self.var = np.asarray(var)       
+        self.var = np.asarray(var)
         if self.train:
             downloaded_list = self.train_list
             self.transform  = AutoAugment(policies, augnum)
         else:
-            downloaded_list = self.test_list 
+            downloaded_list = self.test_list
             self.transform = None
         self.data = []
         self.targets = []
 
         # now load the picked numpy arrays
-        for file_name, checksum in downloaded_list:
+        for file_name, _ in downloaded_list:
             file_path = os.path.join(self.root, self.base_folder, file_name)
-            with open(file_path, 'rb') as f:
+            with open(file_path, 'rb') as file:
                 if sys.version_info[0] == 2:
-                    entry = pickle.load(f)
+                    entry = pickle.load(file)
                 else:
-                    entry = pickle.load(f, encoding='latin1')
+                    entry = pickle.load(file, encoding='latin1')
                 self.data.append(entry['data'])
                 if 'labels' in entry:
                     self.targets.extend(entry['labels'])
@@ -117,7 +117,7 @@ class CIFAR10(Dataset):
         """
         img, target = self.data[index], self.targets[index]
         if self.transform is not None:
-          img = self.transform(img).astype(np.float32)
+            img = self.transform(img).astype(np.float32)
         img = transforms.ToTensor()(img / 255.)
         return img, target
 
@@ -126,7 +126,7 @@ class CIFAR10(Dataset):
 
     def _check_integrity(self):
         root = self.root
-        for fentry in (self.train_list + self.test_list):
+        for fentry in self.train_list + self.test_list:
             filename, md5 = fentry[0], fentry[1]
             fpath = os.path.join(root, self.base_folder, filename)
             if not check_integrity(fpath, md5):
@@ -134,13 +134,14 @@ class CIFAR10(Dataset):
         return True
 
     def download(self):
+        """ download CIFAR dataset if not found in self.root """
         if self._check_integrity():
             print('Files already downloaded and verified')
             return
         download_and_extract_archive(self.url, self.root, filename=self.filename, md5=self.tgz_md5)
 
 
-# +-------------------------------------------------------------------------------------+ # 
+# +-------------------------------------------------------------------------------------+ #
 # |                                                                                     | #
 # |                                      CIFAR 100                                      | #
 # |                                                                                     | #
