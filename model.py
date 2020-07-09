@@ -1,13 +1,19 @@
-""" Model Class: A Lighning Module to be fit by a Trainer """
+""" Base Model Class: A Lighning Module
+    This class implements all the logic code.
+    The LoggedModel class (see logged_model.py) will inherit from it 
+    and handles everything logging related.
+    This LoggedModel class will be the one to be fit by a Trainer
+ """
 
 import numpy as np
 import torch
 from pytorch_lightning.core.lightning import LightningModule
+from pytorch_lightning.metrics.functional import accuracy
 from utils.data import get_train_dataloader, get_val_dataloader
 from utils.model import DenseNet
 from utils.model.init import init_criterion, init_optimizer, init_scheduler
 from utils.model.layers import Cutmix
-from utils import Distillator
+from utils.decorators import verbose
 
 
 class LightningModel(LightningModule):
@@ -66,22 +72,27 @@ class LightningModel(LightningModule):
         if self.config.train.use_cutmix and proba < self.config.train.cutmix_p:
             loss = self.cutmix(inputs, targets)
         else:
-            outputs, layers = self(inputs)
-        if self.config.train.distillation:
-            loss = self.distillator.run(inputs, outputs, targets, layers)
-        else:
+            outputs, _ = self(inputs) # second return value is layers for GKD
             loss = self.criterion(outputs, targets)
-        logs = {'loss': loss}
-        return {'loss': loss, 'logs': logs}
+        acc  = accuracy(outputs, targets)
+        return {'loss': loss, 'acc': acc}
 
     def validation_step(self, batch, batch_idx):
         inputs, targets = batch
         outputs, _ = self(inputs)
-        loss = self.criterion(outputs, targets)
-        logs = {'val_loss': loss}
-        return {'val_loss': loss, 'logs': logs}
+        val_loss = self.criterion(outputs, targets)
+        val_acc  = accuracy(outputs, targets)
+        return {'val_loss': val_loss, 'val_acc': val_acc}
 
+    def training_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        avg_acc  = torch.stack([x['acc']  for x in outputs]).mean()
+        logs = {'loss': avg_loss, 'train_acc': avg_acc}
+        return {'loss': avg_loss, 'log': logs}
+
+    @verbose
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        logs = {'val_loss': avg_loss}
+        avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()
+        logs = {'val_loss': avg_loss, 'val_acc': avg_acc}
         return {'val_loss': avg_loss, 'log': logs}

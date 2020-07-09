@@ -13,10 +13,24 @@ Here are defined 7 Dataclasses:
 
 A final "Meta Data Class" Config is defined, which contains the 7 dataclasses.
 This meta dataclass will be used to instanciate a LightningModel.
+
+- Note on implementation:
+
+Since lists and dicts are mutable objects in Python,
+they should not be used as default arguments of class.
+Thus it is not possible to set a mutable default argument.
+However, we think in this context we can safely do it.
+That's why we use a little workaround in order to so,
+by using the fied function from the dataclasses standart library.
+One can assume that in this context:
+> default_list_attribute = field(default_factory = lambda: the_default_list)
+is equivalent to:
+> default_list_attribute = the_default_list
 """
 
 from dataclasses import dataclass, field
 from utils.data.policies import AUGMENTATION_POLICIES
+
 
 # +-------------------------------------------------------------------------------------+ #
 # |                                                                                     | #
@@ -143,7 +157,7 @@ class Model:
                             If reduction='sum',  reduced_loss = sum(ce(j))
     """
 
-    net: str = 'densenet172'
+    net: str = 'densenet100'
     activation: str = 'relu'
     self_attention: bool = False
     attention_sym: bool = False
