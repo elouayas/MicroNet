@@ -13,7 +13,7 @@ from utils.data import get_train_dataloader, get_val_dataloader
 from utils.model import DenseNet
 from utils.model.init import init_criterion, init_optimizer, init_scheduler
 from utils.model.layers import Cutmix
-from utils.decorators import verbose
+from utils.decorators import val_verbose, train_verbose
 
 
 class LightningModel(LightningModule):
@@ -84,13 +84,14 @@ class LightningModel(LightningModule):
         val_acc  = accuracy(outputs, targets)
         return {'val_loss': val_loss, 'val_acc': val_acc}
 
+    @train_verbose
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_acc  = torch.stack([x['acc']  for x in outputs]).mean()
         logs = {'loss': avg_loss, 'train_acc': avg_acc}
         return {'loss': avg_loss, 'log': logs}
 
-    @verbose
+    @val_verbose
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()

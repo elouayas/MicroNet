@@ -23,7 +23,7 @@ def make_config():
 
 def init_model(config):
     """ config must be an instance of the Config dataclass from config.py """
-    return  LightningModel(config)
+    return  LightningModel  (config)
 
 
 def init_trainer():

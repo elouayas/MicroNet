@@ -157,7 +157,7 @@ class Model:
                             If reduction='sum',  reduced_loss = sum(ce(j))
     """
 
-    net: str = 'densenet100'
+    net: str = 'densenet172'
     activation: str = 'relu'
     self_attention: bool = False
     attention_sym: bool = False
