@@ -14,14 +14,15 @@ Here are defined 7 Dataclasses:
 A final "Meta Data Class" Config is defined, which contains the 7 dataclasses.
 This meta dataclass will be used to instanciate a LightningModel.
 
-- Note on implementation:
+****
+Note on implementation:
 
-Since lists and dicts are mutable objects in Python,
-they should not be used as default arguments of class.
+Since lists and dicts are mutable objects in Python, they should not be used as default
+arguments of class.
 Thus it is not possible to set a mutable default argument.
 However, we think in this context we can safely do it.
-That's why we use a little workaround in order to so,
-by using the fied function from the dataclasses standart library.
+That's why we use a little workaround in order to so, by using the fied function from the
+dataclasses standart library.
 One can assume that in this context:
 > default_list_attribute = field(default_factory = lambda: the_default_list)
 is equivalent to:

@@ -32,8 +32,10 @@ def train_verbose(function):
         print()
         output = function(*args, **kwargs)
         train_loss, train_acc = output['log']['loss'], output['log']['train_acc']
+        lr                    = output['log']['lr']
         print('Training Loss.................: {:.2f}'.format(train_loss))
         print('Training Accuracy.............: {:.2f}'.format(train_acc))
+        print('Current Learning Rate.........: {:.8f}'.format(lr))
         if train_acc > wrapper.best_acc:
             wrapper.best_acc = train_acc
         print('Best Training Accuracy........: {:.2f}'.format(wrapper.best_acc))
