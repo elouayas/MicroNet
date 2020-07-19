@@ -98,7 +98,7 @@ class LightningModel(LightningModule):
         inputs, targets = batch
         outputs, _ = self(inputs)
         val_loss = self.criterion(outputs, targets)
-        #val_acc  = self.metric(outputs, targets) # this line doubles validation time WTF ???
+        #val_acc  = self.metric(outputs, targets)
         #return {'val_loss': val_loss, 'val_acc': val_acc}
         return {'val_loss': val_loss}
 
