@@ -33,6 +33,8 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 # Table of contents
 
 - [To Do](#to-do-for-next-release)
+     - [New Features](#new-features)
+     - [Bugfixes](#bugfixes)
 - [Installation](#installation)
 - [Usage](#usage)
 - [License](#license)
@@ -49,7 +51,7 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
     - add best train acc and best val acc
     - add current learning rate
 
-## Bugfix:
+## Bugfixes:
 
 - accuracy and loss display when training on multiple gpus
 
