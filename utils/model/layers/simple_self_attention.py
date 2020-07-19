@@ -4,8 +4,8 @@
 """
 
 import torch
-import torch.nn
-from fastai.torch_core import nn, tensor, spectral_norm
+import torch.nn as nn
+from torch.nn.utils import spectral_norm
 
 
 # Unmodified from:
@@ -25,7 +25,7 @@ class SimpleSelfAttention(nn.Module):
     def __init__(self, n_in:int, ks=1, sym=False):#, n_out:int):
         super().__init__()
         self.conv = conv1d(n_in, n_in, ks, padding=ks//2, bias=False)
-        self.gamma = nn.Parameter(tensor([0.]))
+        self.gamma = nn.Parameter(torch.as_tensor([0.]))
         self.sym = sym
         self.n_in = n_in
 

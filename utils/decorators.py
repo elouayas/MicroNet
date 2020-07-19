@@ -2,44 +2,90 @@
     Mostly logging and displaying handlers
 """
 
-def val_verbose(function):
-    """ This verbose decorator is specific to the validation_epoch_end method
-        of the LightningModel class.
-    """
-    def wrapper(*args, **kwargs):
-        print()
-        print()
-        print()
-        output = function(*args, **kwargs)
-        val_loss, val_acc = output['log']['val_loss'], output['log']['val_acc']
-        print('Validation Loss.................: {:.2f}'.format(val_loss))
-        print('Validation Accuracy.............: {:.2f}'.format(val_acc))
-        if val_acc > wrapper.best_acc:
-            wrapper.best_acc = val_acc
-        print('Best Validation Accuracy........: {:.2f}'.format(wrapper.best_acc))
-        print()
-        return output
-    wrapper.best_acc = 0
-    return wrapper
 
-def train_verbose(function):
-    """ This verbose decorator is specific to the training_epoch_end method
-        of the LightningModel class.
-    """
+from tqdm import tqdm
+
+def verbose(function):
+    # fancy display
+    top_title_top   = tqdm(total=0, position=3,  bar_format='{desc}')
+    top_title_mid   = tqdm(total=0, position=4,  bar_format='{desc}')
+    top_title_bot   = tqdm(total=0, position=5,  bar_format='{desc}')
+    # all training best
+    best_train_loss = tqdm(total=0, position=6,  bar_format='{desc}')
+    best_val_loss   = tqdm(total=0, position=7,  bar_format='{desc}')
+    best_train_acc  = tqdm(total=0, position=8,  bar_format='{desc}')
+    best_val_acc    = tqdm(total=0, position=9,  bar_format='{desc}')
+    # fancy display
+    mid_title_top   = tqdm(total=0, position=10,  bar_format='{desc}')
+    mid_title_mid   = tqdm(total=0, position=11,  bar_format='{desc}')
+    mid_title_bot   = tqdm(total=0, position=12,  bar_format='{desc}')
+    # current epoch
+    loss_status     = tqdm(total=0, position=13, bar_format='{desc}')
+    acc_status      = tqdm(total=0, position=14, bar_format='{desc}')
+    # fancy display
+    bot_title_top   = tqdm(total=0, position=15, bar_format='{desc}')
+    bot_title_mid   = tqdm(total=0, position=16, bar_format='{desc}')
+    bot_title_bot   = tqdm(total=0, position=17, bar_format='{desc}')
+    # last epoch average
+    avg_train_loss  = tqdm(total=0, position=18, bar_format='{desc}')
+    avg_val_loss    = tqdm(total=0, position=19, bar_format='{desc}')
+    avg_train_acc   = tqdm(total=0, position=20, bar_format='{desc}')
+    avg_val_acc     = tqdm(total=0, position=21, bar_format='{desc}')
+    # last table line
+    bot_table_line  = tqdm(total=0, position=22, bar_format='{desc}')
     def wrapper(*args, **kwargs):
-        print()
-        print()
-        print()
         output = function(*args, **kwargs)
-        train_loss, train_acc = output['log']['loss'], output['log']['train_acc']
-        lr                    = output['log']['lr']
-        print('Training Loss.................: {:.2f}'.format(train_loss))
-        print('Training Accuracy.............: {:.2f}'.format(train_acc))
-        print('Current Learning Rate.........: {:.8f}'.format(lr))
-        if train_acc > wrapper.best_acc:
-            wrapper.best_acc = train_acc
-        print('Best Training Accuracy........: {:.2f}'.format(wrapper.best_acc))
-        print()
+        if function.__name__ == 'training_epoch_end':
+            wrapper.avg_train_loss, wrapper.avg_train_acc = output['loss'], output['log']['acc']
+        elif function.__name__ == 'validation_epoch_end':
+            wrapper.avg_vall_loss = output['val_loss']
+        elif function.__name__ == 'validation_step':
+            loss = output['val_loss']
+            if loss < wrapper.best_val_loss:
+                wrapper.best_val_loss = loss
+        elif function.__name__ == 'training_step':
+            loss, acc = output['loss'], output['acc']
+            if acc > wrapper.best_train_acc:
+                wrapper.best_train_acc = acc
+            if loss < wrapper.best_train_loss:
+                wrapper.best_train_loss = loss
+            # best so far
+            top_title_top.set_description_str('+' + 54*'-' + '+')
+            top_title_mid.set_description_str('| ' + 'BEST SO FAR' + 42*' ' + '|')
+            top_title_bot.set_description_str('+' + 54*'-' + '+')
+            best_train_loss.set_description_str(
+                f'| Best Training Loss.....................: {wrapper.best_train_loss : .4f}' + 5*' ' + '|')
+            best_val_loss.set_description_str(
+                f'| Best Validation Loss...................: {  wrapper.best_val_loss : .4f}' + 5*' ' + '|')
+            best_train_acc.set_description_str(
+                f'| Best Training Accuracy.................: { wrapper.best_train_acc : .4f}' + 5*' ' + '|')
+            best_val_acc.set_description_str(
+                f'| Best Validation Accuracy...............: {   wrapper.best_val_acc : .4f}' + 5*' ' + '|')
+            # current epoch
+            mid_title_top.set_description_str('+' + 54*'-' + '+')
+            mid_title_mid.set_description_str('| ' + 'CURRENT EPOCH' + 40*' ' + '|')
+            mid_title_bot.set_description_str('+' + 54*'-' + '+')
+            loss_status.set_description_str(
+                f'| Training Loss..........................: {loss : .4f}' + 5*' ' + '|')
+            acc_status.set_description_str(
+                f'| Training Accuracy......................: { acc : .4f}' + 5*' ' + '|')
+            # last epoch average
+            bot_title_top.set_description_str('+' + 54*'-' + '+')
+            bot_title_mid.set_description_str('| ' + 'LAST EPOCH AVERAGE' + 35*' ' + '|')
+            bot_title_bot.set_description_str('+' + 54*'-' + '+')
+            avg_train_loss.set_description_str(
+                f'| Average training loss last epoch.......: {wrapper.avg_train_loss : .4f}' + 5*' ' + '|')
+            avg_val_loss.set_description_str(
+                f'| Average validation loss last epoch.....: {  wrapper.avg_val_loss : .4f}' + 5*' ' + '|')
+            avg_train_acc.set_description_str(
+                f'| Average training accuracy last epoch...: { wrapper.avg_train_acc : .4f}' + 5*' ' + '|')
+            avg_val_acc.set_description_str(
+                f'| Average validation accuracy last epoch.: {   wrapper.avg_val_acc : .4f}' + 5*' ' + '|')
+            # last line
+            bot_table_line.set_description_str('+' + 54*'-' + '+')
         return output
-    wrapper.best_acc = 0
+    wrapper.best_train_acc,  wrapper.best_val_acc  = 0, 0
+    wrapper.best_train_loss, wrapper.best_val_loss = 9, 9
+    wrapper.avg_train_loss,  wrapper.avg_val_loss  = 0, 0
+    wrapper.avg_train_acc,   wrapper.avg_val_acc   = 0, 0
     return wrapper

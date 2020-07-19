@@ -1,3 +1,12 @@
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                            BANNER & SHIELD                                         |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
+
+
 ![](./micronet.png)
 
 <p align="center">
@@ -24,36 +33,106 @@
     <img alt="GitHub" src="https://img.shields.io/github/license/navendu-pottekkat/nsfw-filter?style=flat-square&color=yellow">
 </p>
 
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                               MAIN TITLE                                           |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
+
 # MicroNet
 
 Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.github.io/) based on [Pytorch Lightning](https://github.com/PyTorchLightning/pytorch-lightning).
 
 
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                          TABLE OF CONTENTS                                         |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
 
 # Table of contents
 
 - [To Do](#to-do-for-next-release)
      - [New Features](#new-features)
      - [Bugfixes](#bugfixes)
+- [Last Commit Changes Log](#last-commit-changes-log)
 - [Installation](#installation)
 - [Usage](#usage)
 - [License](#license)
 
 
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                                  TO DO                                             |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
+
+
 # To Do for Next Release
 [(Back to top)](#table-of-contents)
 
-
-
 ## New features:
+
+| Features                                                 |      Status      |
+|----------------------------------------------------------|:----------------:|
+| Fix validation accuracy computation issue                |  TO DO           |
+| Add best train acc and best val acc in terminal          |  DONE            |
+| Add current learning rate                                |  TO DO           |
+| No more fastai dependancy                                |  DONE            |
+| Add test method in model & check best model              |  TO DO           |
 
 - clearer terminal display during training:
     - add best train acc and best val acc
     - add current learning rate
 
+- fix validation accuracy computation issue
+
+- infere & training_step interraction with cutmix in model:
+     should be way clearer and cleaner.
+
+- no more depending on fastai:
+     Fastai is imported in the self attention layer only.
+     The code currently loaded could be copied instead. 
+
+
 ## Bugfixes:
 
 - accuracy and loss display when training on multiple gpus
+
+
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                              CHANGES LOG                                           |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
+
+
+# Last Commit Changes Log
+
+- improve README
+- improve terminal display:
+     - table showing training logs
+     - clear terminal on training start:
+          on_training_start method in model.py
+- remove fastai dependancy:
+     code loaded from fastai is now in pytorch
+
+
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                              INSTALLATION                                          |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
 
 # Installation
 [(Back to top)](#table-of-contents)
@@ -75,6 +154,13 @@ To ensure everything run ok, you could try:
 ```pip install pytorch-lightning```
 
 
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                                 USAGE                                              |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
 
 # Usage
 [(Back to top)](#table-of-contents)
@@ -98,6 +184,14 @@ Most useful ones:
 - ```--distributed_backend ddp``` : use DistributedDataParallel as backend to train across multiple gpus.
 - ```--fast_dev_run True``` : runs one training loop, that is one validation step, one test step, one training step on a single data batch. Used to debug efficiently. 
 
+
+<!--
++----------------------------------------------------------------------------------------------------+
+|                                                                                                    |
+|                                                LICENSE                                             |
+|                                                                                                    |
++----------------------------------------------------------------------------------------------------+
+ -->
 
 # License
 [(Back to top)](#table-of-contents)
