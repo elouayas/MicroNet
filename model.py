@@ -88,7 +88,9 @@ class LightningModel(LightningModule):
     def training_step(self, batch, batch_idx):
         inputs, targets = batch
         loss, acc, _ = self.infere(inputs, targets) # third return values is layers for GKD
-        return {'loss': loss, 'acc': acc}
+        lr = self.trainer.callbacks[0].lrs['lr-SGD'][0] # UGLY AS FUCK !! we need to do way better !
+        return {'loss': loss, 'acc': acc, 'lr': lr}
+        
 
     @verbose
     def validation_step(self, batch, batch_idx):

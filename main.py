@@ -2,10 +2,10 @@
 
 from argparse import ArgumentParser
 from pytorch_lightning import Trainer
+from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import LearningRateLogger
 from model import LightningModel
 import config as cfg
-
 
 def make_config():
     """

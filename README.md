@@ -79,31 +79,30 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 
 ## New features:
 
-| Features                                                 |      Status      |
-|----------------------------------------------------------|:----------------:|
-| Fix validation accuracy computation issue                |  TO DO           |
-| Add best train acc and best val acc in terminal          |  DONE            |
-| Add current learning rate                                |  TO DO           |
-| No more fastai dependancy                                |  DONE            |
-| Add test method in model & check best model              |  TO DO           |
+| Features                                                 |      Status      |      Type    |
+|----------------------------------------------------------|:----------------:|:------------:|
+| Fix validation accuracy computation issue                |  TO DO           |   Bugfix     |
+| Add best train acc and best val acc in terminal          |  DONE            |   Feature    |
+| Add current learning rate in terminal                    |  TO DO           |   Feature    |
+| No more fastai dependancy                                |  DONE            |   Feature    |
+| Add test method in model & check best model              |  TO DO           |   Feature    |
+| Add loss and acc to Tensorboard                          |  TO DO           |   Feature    |
+| Terminal size and cursor issue                           |  TO DO           |   Bugfix     |
 
 - clearer terminal display during training:
     - add best train acc and best val acc
     - add current learning rate
 
-- fix validation accuracy computation issue
-
-- infere & training_step interraction with cutmix in model:
-     should be way clearer and cleaner.
-
-- no more depending on fastai:
-     Fastai is imported in the self attention layer only.
-     The code currently loaded could be copied instead. 
+- tensorboard logs: must define a tensorboard logger object (callback) and add scalar to it
 
 
 ## Bugfixes:
 
 - accuracy and loss display when training on multiple gpus
+- Terminal size bug with the fancy tqdm display:
+     * the best would be to check if it's big enough before starting training and adjust size if needed
+     * the cursor should be placed automatically at the end to avoid ugly collision
+- fix validation accuracy computation issue
 
 
 <!--
