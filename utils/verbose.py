@@ -4,6 +4,7 @@
 
 import os
 from tqdm import tqdm
+from dataclasses import dataclass
 from pytorch_lightning import Callback
 
 # +-------------------------------------------------------------------------------------+ #
@@ -12,21 +13,20 @@ from pytorch_lightning import Callback
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ #
 
+@dataclass
 class FancyDisplay():
 
-    def __init__(self, width):
-        self.current_loss        = '| Current training Loss......:'
-        self.current_acc         = '| Current training Accuracy..:'
-        self.current_lr          = '| Current Learning Rate......:'
-        self.last_avg_train_loss = '| Training loss..............:'
-        self.last_avg_val_loss   = '| Validation loss............:'
-        self.last_avg_train_acc  = '| Training accuracy..........:'
-        self.last_avg_val_acc    = '| Validation accuracy........:'
-        self.best_avg_train_loss = '| Training Loss..............:'
-        self.best_avg_val_loss   = '| Validation Loss............:'
-        self.best_avg_train_acc  = '| Training Accuracy..........:'
-        self.best_avg_val_acc    = '| Validation Accuracy........:'
-        self.title_border        = '+' + (width-2)*'-' + '+'
+    current_loss:        str = '| Current training Loss......:'
+    current_acc:         str = '| Current training Accuracy..:'
+    current_lr:          str = '| Current Learning Rate......:'
+    last_avg_train_loss: str = '| Training loss..............:'
+    last_avg_val_loss:   str = '| Validation loss............:'
+    last_avg_train_acc:  str = '| Training accuracy..........:'
+    last_avg_val_acc:    str = '| Validation accuracy........:'
+    best_avg_train_loss: str = '| Training Loss..............:'
+    best_avg_val_loss:   str = '| Validation Loss............:'
+    best_avg_train_acc:  str = '| Training Accuracy..........:'
+    best_avg_val_acc:    str = '| Validation Accuracy........:'
 
 
 
@@ -39,15 +39,37 @@ class FancyDisplay():
 
 class Descriptor:
 
-    def __init__(self, position, string):
+    def __init__(self, width, position, string):
         self.tqdm   = tqdm(total=0, position=position, bar_format='{desc}')
         self.string = string
+        self.offset = width - 2 - 8 - len(string)
 
     def update(self, value):
-        self.tqdm.set_description_str(f'{self.string} {value : 2f} |')
+        status = self.string + ' {:4f}'.format(value) + self.offset*' ' + '|'
+        self.tqdm.set_description_str(status)
 
-    def set_title(self):
-        self.tqdm.set_description_str(self.string)
+# +-------------------------------------------------------------------------------------+ #
+# |                                                                                     | #
+# |                                       TQDM TITLE                                    | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ #
+
+class Title:
+
+    def __init__(self, position, width, string=None, top_border_only=False):
+        self.top_border_only = top_border_only
+        self.top_border = tqdm(total=0, position=position-1, bar_format='{desc}')
+        if not self.top_border_only:
+            self.title      = tqdm(total=0, position=position,   bar_format='{desc}')
+            self.bot_border = tqdm(total=0, position=position+1, bar_format='{desc}')
+            self.string     = '|' + string + (width-2-len(string))*' ' + '|'
+        self.str_border = '+' + (width-2)*'-' + '+'
+
+    def display(self):
+        self.top_border.set_description_str(self.str_border)
+        if not self.top_border_only:
+            self.title.set_description_str(self.string)
+            self.bot_border.set_description_str(self.str_border)
 
 
 
@@ -68,58 +90,47 @@ class Table:
     """
     def __init__(self, width=42):
         self.width     = width
-        self.strings   = FancyDisplay(width)
+        self.strings   = FancyDisplay()
         # titles
-        self.top_title = self._init_title( 3,  4,  5, 'CURRENT EPOCH')
-        self.mid_title = self._init_title( 9, 10, 11, 'LAST EPOCH (average)')
-        self.bot_title = self._init_title(16, 17, 18, 'BEST SO FAR (one epoch average)')
-        self.last_line = Descriptor(23, self.strings.title_border)
+        self.top_title = Title(4,  width, 'CURRENT EPOCH')
+        self.mid_title = Title(10, width, 'LAST EPOCH (average)')
+        self.bot_title = Title(17, width, 'BEST SO FAR (one epoch average)')
+        self.last_line = Title(24, width, top_border_only=True)
         # current epoch
-        self.current = {'loss': Descriptor(6, self.strings.current_loss),
-                         'acc': Descriptor(7, self.strings.current_acc),
-                          'lr': Descriptor(8, self.strings.current_lr)}
+        self.current = {'loss': Descriptor(width, 6, self.strings.current_loss),
+                         'acc': Descriptor(width, 7, self.strings.current_acc),
+                          'lr': Descriptor(width, 8, self.strings.current_lr)}
         # last epoch average
-        self.last_epoch_avg = {'train_loss': Descriptor(12, self.strings.last_avg_train_loss),
-                                 'val_loss': Descriptor(13, self.strings.last_avg_val_loss),
-                                'train_acc': Descriptor(14, self.strings.last_avg_train_acc),
-                                  'val_acc': Descriptor(15, self.strings.last_avg_val_acc)}
+        self.last_epoch_avg = {'train_loss': Descriptor(width, 12, self.strings.last_avg_train_loss),
+                                 'val_loss': Descriptor(width, 13, self.strings.last_avg_val_loss),
+                                'train_acc': Descriptor(width, 14, self.strings.last_avg_train_acc),
+                                  'val_acc': Descriptor(width, 15, self.strings.last_avg_val_acc)}
         # all training best
-        self.best  = {'train_loss': Descriptor(19, self.strings.best_avg_train_loss),
-                        'val_loss': Descriptor(20, self.strings.best_avg_val_loss),
-                       'train_acc': Descriptor(21, self.strings.best_avg_train_acc),
-                         'val_acc': Descriptor(22, self.strings.best_avg_val_acc)}
-
-    def _init_title(self, pos1, pos2, pos3, string):
-        offset = self.width - 3 - len(string)
-        return [Descriptor(pos1, self.strings.title_border),
-                Descriptor(pos2, '| ' + string + offset*' ' + '|'),
-                Descriptor(pos3, self.strings.title_border)]
-
-    def _set_title(self, title):
-        title[0].set_title()
-        title[1].set_title()
-        title[2].set_title()
+        self.best  = {'train_loss': Descriptor(width, 19, self.strings.best_avg_train_loss),
+                        'val_loss': Descriptor(width, 20, self.strings.best_avg_val_loss),
+                       'train_acc': Descriptor(width, 21, self.strings.best_avg_train_acc),
+                         'val_acc': Descriptor(width, 22, self.strings.best_avg_val_acc)}
 
     def update_current(self, loss, acc, lr):
-        self._set_title(self.top_title)
+        self.top_title.display()
         self.current['loss'].update(loss)
         self.current['acc'].update(acc)
         self.current['lr'].update(lr)
 
     def update_last_average(self, loss, val_loss, acc, val_acc):
-        self._set_title(self.mid_title)
+        self.mid_title.display()
         self.last_epoch_avg['train_loss'].update(loss)
         self.last_epoch_avg['val_loss'].update(val_loss)
         self.last_epoch_avg['train_acc'].update(acc)
         self.last_epoch_avg['val_acc'].update(val_acc)
 
     def update_best_average(self, train_loss, val_loss, train_acc, val_acc):
-        self._set_title(self.bot_title)
+        self.bot_title.display()
         self.best['train_loss'].update(train_loss)
         self.best['val_loss'].update(val_loss)
         self.best['train_acc'].update(train_acc)
         self.best['val_acc'].update(val_acc)
-        self.last_line.set_title()
+        self.last_line.display()
 
 
 
@@ -132,7 +143,7 @@ class Table:
 
 class State():
 
-    def __init__(self):
+    def __init__(self, table_width=42):
         self.current_loss        = 9.9999
         self.current_acc         = 0.
         self.current_lr          = 0.
@@ -144,7 +155,7 @@ class State():
         self.best_avg_val_loss   = 9.9999
         self.best_avg_train_acc  = 0.
         self.best_avg_val_acc    = 0.
-        self.table              = Table()
+        self.table              = Table(table_width)
 
     def update_current_train(self, output):
         self.current_loss = output['loss']
