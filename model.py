@@ -7,13 +7,13 @@ import os
 import numpy as np
 import torch
 from pytorch_lightning.core.lightning import LightningModule
-# from pytorch_lightning.metrics.functional import accuracy
-from pytorch_lightning.metrics import Accuracy
+#from pytorch_lightning.metrics.functional import accuracy
+#from pytorch_lightning.metrics import Accuracy
 from utils.data import get_train_dataloader, get_val_dataloader
 from utils.model import DenseNet
 from utils.model.init import init_criterion, init_optimizer, init_scheduler
 from utils.model.layers import Cutmix
-from utils.decorators import verbose
+#from utils.decorators import verbose, Verbose
 
 
 class LightningModel(LightningModule):
@@ -43,7 +43,6 @@ class LightningModel(LightningModule):
         self.config      = config
         self.net         = DenseNet.from_name(self.config.dataset, self.config.model.net)
         self.criterion   = init_criterion(self.config.model)
-        self.metric      = Accuracy()
         self.save_hyperparameters()
 
     def train_dataloader(self):
@@ -60,9 +59,6 @@ class LightningModel(LightningModule):
     def forward(self, x):
         return self.net(x)
 
-    def on_train_start(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
     def cutmix(self, inputs, targets):
         """ mix two inputs in a Cutout way """
         lam, inputs, target_a, target_b = Cutmix(inputs, targets, self.config.train.cutmix_beta)
@@ -71,47 +67,47 @@ class LightningModel(LightningModule):
         loss = loss_a * lam + loss_b * (1. - lam)
         return outputs, layers, loss
 
-    def infere(self, inputs, targets):
+    def infere(self, inputs, targets, train=True):
         """ infere on the giving inputs and compute the loss using targets
             returns loss, acc, layers (layers is for GKD)
         """
         proba = np.random.rand(1)
-        if self.config.train.use_cutmix and proba < self.config.train.cutmix_p:
+        if train and self.config.train.use_cutmix and proba < self.config.train.cutmix_p:
             outputs, layers, loss = self.cutmix(inputs, targets)
         else:
             outputs, layers = self(inputs) # second return value is layers for GKD
             loss = self.criterion(outputs, targets)
-        acc  = self.metric(outputs, targets)
+        acc = self.accuracy(outputs, targets)
         return loss, acc, layers
 
-    @verbose
+    def accuracy(self, outputs, targets):
+        _, predicted = outputs.max(1)
+        total, correct = targets.size(0), predicted.eq(targets).sum().item()
+        return torch.as_tensor(correct/total)
+
+    #@Verbose
     def training_step(self, batch, batch_idx):
         inputs, targets = batch
         loss, acc, _ = self.infere(inputs, targets) # third return values is layers for GKD
         lr = self.trainer.callbacks[0].lrs['lr-SGD'][0] # UGLY AS FUCK !! we need to do way better !
         return {'loss': loss, 'acc': acc, 'lr': lr}
-        
 
-    @verbose
+    #@Verbose
     def validation_step(self, batch, batch_idx):
         inputs, targets = batch
-        outputs, _ = self(inputs)
-        val_loss = self.criterion(outputs, targets)
-        # val_acc  = self.metric(outputs, targets)
-        # return {'val_loss': val_loss, 'val_acc': val_acc}
-        return {'val_loss': val_loss}
+        val_loss, val_acc, _ = self.infere(inputs, targets, train=False)
+        return {'val_loss': val_loss, 'val_acc': val_acc}
 
-    @verbose
+    #@Verbose
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_acc  = torch.stack([x['acc']  for x in outputs]).mean()
-        logs = {'loss': avg_loss, 'acc': avg_acc}
-        return {'loss': avg_loss, 'log': logs}
+        log = {'loss': avg_loss, 'acc': avg_acc}
+        return {'loss': avg_loss, 'log': log}
 
-    @verbose
+    #@Verbose
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        #avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()
-        logs = {'val_loss': avg_loss}
-        return {'val_loss': avg_loss, 'log': logs}
-        #return {'val_loss': avg_loss}
+        avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()
+        log = {'val_loss': avg_loss, 'val_acc': avg_acc}
+        return {'val_loss': avg_loss, 'log': log}

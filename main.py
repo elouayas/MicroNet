@@ -1,10 +1,12 @@
 """ Main Python file to start training """
 
+import os
 from argparse import ArgumentParser
 from pytorch_lightning import Trainer
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import LearningRateLogger
 from model import LightningModel
+from utils.verbose import VerboseCallback
 import config as cfg
 
 def make_config():
@@ -34,7 +36,8 @@ def init_trainer():
     parser = Trainer.add_argparse_args(parser)
     args   = parser.parse_args()
     lr_logger = LearningRateLogger()
-    return Trainer.from_argparse_args(args, callbacks = [lr_logger])
+    verbose   = VerboseCallback()
+    return Trainer.from_argparse_args(args, callbacks = [lr_logger, verbose])
 
 
 def run_training():
@@ -46,3 +49,4 @@ def run_training():
 
 if __name__ == '__main__':
     run_training()
+

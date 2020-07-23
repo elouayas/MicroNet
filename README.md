@@ -82,12 +82,12 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 | Features                                                 |      Status      |      Type    |
 |----------------------------------------------------------|:----------------:|:------------:|
 | Fix validation accuracy computation issue                |  TO DO           |   Bugfix     |
-| Add best train acc and best val acc in terminal          |  DONE            |   Feature    |
 | Add current learning rate in terminal                    |  TO DO           |   Feature    |
-| No more fastai dependancy                                |  DONE            |   Feature    |
 | Add test method in model & check best model              |  TO DO           |   Feature    |
 | Add loss and acc to Tensorboard                          |  TO DO           |   Feature    |
 | Terminal size and cursor issue                           |  TO DO           |   Bugfix     |
+| Add best train acc and best val acc in terminal          |  DONE            |   Feature    |
+| No more fastai dependancy                                |  DONE            |   Feature    |
 
 - clearer terminal display during training:
     - add best train acc and best val acc
@@ -102,6 +102,8 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 - Terminal size bug with the fancy tqdm display:
      * the best would be to check if it's big enough before starting training and adjust size if needed
      * the cursor should be placed automatically at the end to avoid ugly collision
+     -> Since the above solution seems impossible (or at least impossible to do on all OS an via SSH)
+     maybe we can try smg like adding a callback to clear terminal when receiving a signal.
 - fix validation accuracy computation issue
 
 
