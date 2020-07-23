@@ -3,8 +3,8 @@
 """
 
 import os
-from tqdm import tqdm
 from dataclasses import dataclass
+from tqdm import tqdm
 from pytorch_lightning import Callback
 
 # +-------------------------------------------------------------------------------------+ #
@@ -48,6 +48,9 @@ class Descriptor:
         status = self.string + ' {:4f}'.format(value) + self.offset*' ' + '|'
         self.tqdm.set_description_str(status)
 
+    def close(self):
+        self.tqdm.close()
+
 # +-------------------------------------------------------------------------------------+ #
 # |                                                                                     | #
 # |                                       TQDM TITLE                                    | #
@@ -71,6 +74,12 @@ class Title:
             self.title.set_description_str(self.string)
             self.bot_border.set_description_str(self.str_border)
 
+    def close(self):
+        self.top_border.close()
+        if not self.top_border_only:
+            self.title.close()
+            self.bot_border.close()
+
 
 
 
@@ -88,51 +97,70 @@ class Table:
         Table to be display in terminal, showing current training infos.
         Updated every batch.
     """
-    def __init__(self, width=42):
+    def __init__(self, width=42, best_only=False):
         self.width     = width
         self.strings   = FancyDisplay()
-        # titles
-        self.top_title = Title(4,  width, 'CURRENT EPOCH')
-        self.mid_title = Title(10, width, 'LAST EPOCH (average)')
-        self.bot_title = Title(17, width, 'BEST SO FAR (one epoch average)')
-        self.last_line = Title(24, width, top_border_only=True)
-        # current epoch
-        self.current = {'loss': Descriptor(width, 6, self.strings.current_loss),
-                         'acc': Descriptor(width, 7, self.strings.current_acc),
-                          'lr': Descriptor(width, 8, self.strings.current_lr)}
-        # last epoch average
-        self.last_epoch_avg = {'train_loss': Descriptor(width, 12, self.strings.last_avg_train_loss),
-                                 'val_loss': Descriptor(width, 13, self.strings.last_avg_val_loss),
-                                'train_acc': Descriptor(width, 14, self.strings.last_avg_train_acc),
-                                  'val_acc': Descriptor(width, 15, self.strings.last_avg_val_acc)}
-        # all training best
-        self.best  = {'train_loss': Descriptor(width, 19, self.strings.best_avg_train_loss),
-                        'val_loss': Descriptor(width, 20, self.strings.best_avg_val_loss),
-                       'train_acc': Descriptor(width, 21, self.strings.best_avg_train_acc),
-                         'val_acc': Descriptor(width, 22, self.strings.best_avg_val_acc)}
+        if not best_only:
+            self.top_title = Title(4,  width, 'CURRENT EPOCH')
+            self.current_loss = Descriptor(width, 6, self.strings.current_loss)
+            self.current_acc  = Descriptor(width, 7, self.strings.current_acc)
+            self.current_lr   = Descriptor(width, 8, self.strings.current_lr)
+            self.mid_title = Title(10, width, 'LAST EPOCH (average)')
+            self.last_epoch_avg_train_loss = Descriptor(width, 12, self.strings.last_avg_train_loss)
+            self.last_epoch_avg_val_loss   = Descriptor(width, 13, self.strings.last_avg_val_loss)
+            self.last_epoch_avg_train_acc  = Descriptor(width, 14, self.strings.last_avg_train_acc)
+            self.last_epoch_avg_val_acc    = Descriptor(width, 15, self.strings.last_avg_val_acc)
+            self.bot_title = Title(17, width, 'BEST SO FAR (one epoch average)')
+            self.best_train_loss = Descriptor(width, 19, self.strings.best_avg_train_loss)
+            self.best_val_loss   = Descriptor(width, 20, self.strings.best_avg_val_loss)
+            self.best_train_acc  = Descriptor(width, 21, self.strings.best_avg_train_acc)
+            self.best_val_acc    = Descriptor(width, 22, self.strings.best_avg_val_acc)
+            self.last_line = Title(24, width, top_border_only=True)
+        else:
+            self.bot_title = Title(2, width, 'BEST SO FAR (one epoch average)')
+            self.best_train_loss = Descriptor(width, 4, self.strings.best_avg_train_loss)
+            self.best_val_loss   = Descriptor(width, 5, self.strings.best_avg_val_loss)
+            self.best_train_acc  = Descriptor(width, 6, self.strings.best_avg_train_acc)
+            self.best_val_acc    = Descriptor(width, 7, self.strings.best_avg_val_acc)
+            self.last_line = Title(9, width, top_border_only=True)
 
     def update_current(self, loss, acc, lr):
         self.top_title.display()
-        self.current['loss'].update(loss)
-        self.current['acc'].update(acc)
-        self.current['lr'].update(lr)
+        self.current_loss.update(loss)
+        self.current_acc.update(acc)
+        self.current_lr.update(lr)
 
     def update_last_average(self, loss, val_loss, acc, val_acc):
         self.mid_title.display()
-        self.last_epoch_avg['train_loss'].update(loss)
-        self.last_epoch_avg['val_loss'].update(val_loss)
-        self.last_epoch_avg['train_acc'].update(acc)
-        self.last_epoch_avg['val_acc'].update(val_acc)
+        self.last_epoch_avg_train_loss.update(loss)
+        self.last_epoch_avg_val_loss.update(val_loss)
+        self.last_epoch_avg_train_acc.update(acc)
+        self.last_epoch_avg_val_acc.update(val_acc)
 
     def update_best_average(self, train_loss, val_loss, train_acc, val_acc):
         self.bot_title.display()
-        self.best['train_loss'].update(train_loss)
-        self.best['val_loss'].update(val_loss)
-        self.best['train_acc'].update(train_acc)
-        self.best['val_acc'].update(val_acc)
+        self.best_train_loss.update(train_loss)
+        self.best_val_loss.update(val_loss)
+        self.best_train_acc.update(train_acc)
+        self.best_val_acc.update(val_acc)
         self.last_line.display()
 
-
+    def close(self):
+        self.top_title.close()
+        self.mid_title.close()
+        self.bot_title.close()
+        self.last_line.close()
+        self.current_loss.close()
+        self.current_acc.close()
+        self.current_lr.close()
+        self.last_epoch_avg_train_loss.close()
+        self.last_epoch_avg_val_loss.close()
+        self.last_epoch_avg_train_acc.close()
+        self.last_epoch_avg_val_acc.close()
+        self.best_train_loss.close()
+        self.best_val_loss.close()
+        self.best_train_acc.close()
+        self.best_val_acc.close()
 
 
 # +-------------------------------------------------------------------------------------+ #
@@ -193,6 +221,10 @@ class VerboseCallback(Callback):
     def __init__(self):
         self.state    = State()
 
+    @staticmethod
+    def clear_terminal():
+        os.system('cls' if os.name == 'nt' else 'clear')
+
     def on_batch_end(self, trainer, pl_module):
         output = trainer.callback_metrics
         if not output:
@@ -208,5 +240,15 @@ class VerboseCallback(Callback):
         print(2*'\n')
 
     def on_train_start(self, trainer, pl_module):
-        os.system('cls' if os.name == 'nt' else 'clear')
-        
+        self.clear_terminal()
+
+    def on_keyboard_interrupt(self, trainer, pl_module):
+        self.state.table.close()
+        self.clear_terminal()
+        print("Keyboard interrupt. Pytorch Lightning attempted a graceful shutdown.")
+        print("So far, the training results were the following:\n")
+        table = Table(best_only=True)
+        table.bot_title.display()
+        table.update_best_average(self.state.best_avg_train_loss, self.state.best_avg_val_loss,
+                                  self.state.best_avg_train_acc,  self.state.best_avg_val_acc)
+        table.last_line.display()
