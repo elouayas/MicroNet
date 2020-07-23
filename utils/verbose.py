@@ -3,7 +3,6 @@
 """
 
 import os
-from dataclasses import dataclass
 from tqdm import tqdm
 from pytorch_lightning import Callback
 
@@ -13,22 +12,114 @@ from pytorch_lightning import Callback
 # |                                                                                     | #
 # +-------------------------------------------------------------------------------------+ #
 
-@dataclass
 class FancyDisplay():
 
-    current_loss:        str = '| Current training Loss......:'
-    current_acc:         str = '| Current training Accuracy..:'
-    current_lr:          str = '| Current Learning Rate......:'
+    def __init__(self, width):
+        self.current_loss        = '| Current training Loss......:'
+        self.current_acc         = '| Current training Accuracy..:'
+        self.current_lr          = '| Current Learning Rate......:'
+        self.last_avg_train_loss = '| Training loss..............:'
+        self.last_avg_val_loss   = '| Validation loss............:'
+        self.last_avg_train_acc  = '| Training accuracy..........:'
+        self.last_avg_val_acc    = '| Validation accuracy........:'
+        self.best_avg_train_loss = '| Training Loss..............:'
+        self.best_avg_val_loss   = '| Validation Loss............:'
+        self.best_avg_train_acc  = '| Training Accuracy..........:'
+        self.best_avg_val_acc    = '| Validation Accuracy........:'
+        self.title_border        = '+' + (width-2)*'-' + '+'
 
-    last_avg_train_loss: str = '| Training loss..............:'
-    last_avg_val_loss:   str = '| Validation loss............:'
-    last_avg_train_acc:  str = '| Training accuracy..........:'
-    last_avg_val_acc:    str = '| Validation accuracy........:'
 
-    best_avg_train_loss: str = '| Training Loss..............:'
-    best_avg_val_loss:   str = '| Validation Loss............:'
-    best_avg_train_acc:  str = '| Training Accuracy..........:'
-    best_avg_val_acc:    str = '| Validation Accuracy........:'
+
+
+# +-------------------------------------------------------------------------------------+ #
+# |                                                                                     | #
+# |                                    TQDM DESCRIPTOR                                  | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ #
+
+class Descriptor:
+
+    def __init__(self, position, string):
+        self.tqdm   = tqdm(total=0, position=position, bar_format='{desc}')
+        self.string = string
+
+    def update(self, value):
+        self.tqdm.set_description_str(f'{self.string} {value : 2f} |')
+
+    def set_title(self):
+        self.tqdm.set_description_str(self.string)
+
+
+
+
+# +-------------------------------------------------------------------------------------+ #
+# |                                                                                     | #
+# |                                          TABLE                                      | #
+# |                                                                                     | #
+# +-------------------------------------------------------------------------------------+ #
+
+#TODO: Make tqdm descriptor a class with a method to update string
+#      (and another to update position ?)
+
+class Table:
+    """
+        Table to be display in terminal, showing current training infos.
+        Updated every batch.
+    """
+    def __init__(self, width=42):
+        self.width     = width
+        self.strings   = FancyDisplay(width)
+        # titles
+        self.top_title = self._init_title( 3,  4,  5, 'CURRENT EPOCH')
+        self.mid_title = self._init_title( 9, 10, 11, 'LAST EPOCH (average)')
+        self.bot_title = self._init_title(16, 17, 18, 'BEST SO FAR (one epoch average)')
+        self.last_line = Descriptor(23, self.strings.title_border)
+        # current epoch
+        self.current = {'loss': Descriptor(6, self.strings.current_loss),
+                         'acc': Descriptor(7, self.strings.current_acc),
+                          'lr': Descriptor(8, self.strings.current_lr)}
+        # last epoch average
+        self.last_epoch_avg = {'train_loss': Descriptor(12, self.strings.last_avg_train_loss),
+                                 'val_loss': Descriptor(13, self.strings.last_avg_val_loss),
+                                'train_acc': Descriptor(14, self.strings.last_avg_train_acc),
+                                  'val_acc': Descriptor(15, self.strings.last_avg_val_acc)}
+        # all training best
+        self.best  = {'train_loss': Descriptor(19, self.strings.best_avg_train_loss),
+                        'val_loss': Descriptor(20, self.strings.best_avg_val_loss),
+                       'train_acc': Descriptor(21, self.strings.best_avg_train_acc),
+                         'val_acc': Descriptor(22, self.strings.best_avg_val_acc)}
+
+    def _init_title(self, pos1, pos2, pos3, string):
+        offset = self.width - 3 - len(string)
+        return [Descriptor(pos1, self.strings.title_border),
+                Descriptor(pos2, '| ' + string + offset*' ' + '|'),
+                Descriptor(pos3, self.strings.title_border)]
+
+    def _set_title(self, title):
+        title[0].set_title()
+        title[1].set_title()
+        title[2].set_title()
+
+    def update_current(self, loss, acc, lr):
+        self._set_title(self.top_title)
+        self.current['loss'].update(loss)
+        self.current['acc'].update(acc)
+        self.current['lr'].update(lr)
+
+    def update_last_average(self, loss, val_loss, acc, val_acc):
+        self._set_title(self.mid_title)
+        self.last_epoch_avg['train_loss'].update(loss)
+        self.last_epoch_avg['val_loss'].update(val_loss)
+        self.last_epoch_avg['train_acc'].update(acc)
+        self.last_epoch_avg['val_acc'].update(val_acc)
+
+    def update_best_average(self, train_loss, val_loss, train_acc, val_acc):
+        self._set_title(self.bot_title)
+        self.best['train_loss'].update(train_loss)
+        self.best['val_loss'].update(val_loss)
+        self.best['train_acc'].update(train_acc)
+        self.best['val_acc'].update(val_acc)
+        self.last_line.set_title()
 
 
 
@@ -77,99 +168,6 @@ class State():
         self.table.update_last_average(self.last_avg_train_loss, self.last_avg_val_loss,
                                        self.last_avg_train_acc,  self.last_avg_val_acc)
 
-
-
-
-# +-------------------------------------------------------------------------------------+ #
-# |                                                                                     | #
-# |                                    TQDM DESCRIPTOR                                  | #
-# |                                                                                     | #
-# +-------------------------------------------------------------------------------------+ #
-
-
-class Descriptor:
-
-    def __init__(self, position):
-        self.bar = tqdm(total=0, position=position, bar_format='{desc}')
-
-
-
-
-# +-------------------------------------------------------------------------------------+ #
-# |                                                                                     | #
-# |                                          TABLE                                      | #
-# |                                                                                     | #
-# +-------------------------------------------------------------------------------------+ #
-
-#TODO: Make tqdm descriptor a class with a method to update string 
-#      (and another to update position ?)
-
-class Table:
-    """
-        Table to be display in terminal, showing current training infos.
-        Updated every batch.
-    """
-    def __init__(self):
-        self.strings = FancyDisplay()
-        # titles
-        self.top_title = self._init_title( 3,  4,  5)
-        self.mid_title = self._init_title( 9, 10, 11)
-        self.bot_title = self._init_title(16, 17, 18)
-        self.last_line = self._init_descriptor(23)
-        # current epoch
-        self.current = {'loss': self._init_descriptor(6),
-                        'acc':  self._init_descriptor(7),
-                        'lr':   self._init_descriptor(8)}
-        # last epoch average
-        self.last_epoch_avg = {'train_loss': self._init_descriptor(12),
-                               'val_loss':   self._init_descriptor(13),
-                               'train_acc':  self._init_descriptor(14),
-                               'val_acc':    self._init_descriptor(15)}
-        # all training best
-        self.best  = {'train_loss': self._init_descriptor(19),
-                      'val_loss':   self._init_descriptor(20),
-                      'train_acc':  self._init_descriptor(21),
-                      'val_acc':    self._init_descriptor(22)}
-        self.last_line = self._init_descriptor(23)
-
-    @staticmethod
-    def _init_descriptor(pos):
-        return tqdm(total=0, position=pos, bar_format='{desc}')
-
-    def _init_title(self, pos1, pos2, pos3):
-        return [self._init_descriptor(pos1),
-                self._init_descriptor(pos2),
-                self._init_descriptor(pos3)]
-
-    @staticmethod
-    def _set_title(title, string, offset):
-        title[0].set_description_str('+' + 40*'-' + '+')
-        title[1].set_description_str('| ' + string + offset*' ' + '|')
-        title[2].set_description_str('+' + 40*'-' + '+')
-
-    def _update(self, descriptor, string, value):
-        descriptor.set_description_str(f'{string} {value : 2f} |')
-
-    def update_current(self, loss, acc, lr):
-        self._set_title(self.top_title, 'CURRENT EPOCH', 26)
-        self._update(self.current['loss'], self.strings.current_loss, loss)
-        self._update(self.current['acc'],  self.strings.current_acc,  acc)
-        self._update(self.current['lr'],   self.strings.current_lr,   lr)
-
-    def update_last_average(self, loss, val_loss, acc, val_acc):
-        self._set_title(self.mid_title, 'LAST EPOCH (average)', 19)
-        self._update(self.last_epoch_avg['train_loss'], self.strings.last_avg_train_loss, loss)
-        self._update(self.last_epoch_avg['val_loss'],   self.strings.last_avg_val_loss,   val_loss)
-        self._update(self.last_epoch_avg['train_acc'],  self.strings.last_avg_train_acc,  acc)
-        self._update(self.last_epoch_avg['val_acc'],    self.strings.last_avg_val_acc,    val_acc)
-
-    def update_best_average(self, train_loss, val_loss, train_acc, val_acc):
-        self._set_title(self.bot_title, 'BEST SO FAR (one epoch average)', 8)
-        self._update(self.best['train_loss'], self.strings.best_avg_train_loss, train_loss)
-        self._update(self.best['val_loss'],   self.strings.best_avg_val_loss,   val_loss)
-        self._update(self.best['train_acc'],  self.strings.best_avg_train_acc,  train_acc)
-        self._update(self.best['val_acc'],    self.strings.best_avg_val_acc,    val_acc)
-        self.last_line.set_description_str('+' + 40*'-' + '+')
 
 
 
