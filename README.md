@@ -81,31 +81,27 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 
 | Features                                                 |      Status      |      Type    |
 |----------------------------------------------------------|:----------------:|:------------:|
-| Fix validation accuracy computation issue                |  TO DO           |   Bugfix     |
-| Add current learning rate in terminal                    |  TO DO           |   Feature    |
-| Add test method in model & check best model              |  TO DO           |   Feature    |
-| Add loss and acc to Tensorboard                          |  TO DO           |   Feature    |
-| Terminal size and cursor issue                           |  TO DO           |   Bugfix     |
+| Fix validation accuracy computation issue                |  DONE            |   Bugfix     |
+| Add current learning rate in terminal                    |  TO DO           |   Bugfix     |
+| Add test method in model & check best model              |  DONE            |   Feature    |
+| Add loss and acc to Tensorboard                          |  DONE            |   Feature    |
+| Terminal size and cursor issue                           |  DONE            |   Bugfix     |
 | Add best train acc and best val acc in terminal          |  DONE            |   Feature    |
 | No more fastai dependancy                                |  DONE            |   Feature    |
 
-- clearer terminal display during training:
-    - add best train acc and best val acc
-    - add current learning rate
 
 - tensorboard logs: must define a tensorboard logger object (callback) and add scalar to it
 
 
 ## Bugfixes:
 
-- accuracy and loss display when training on multiple gpus
-- Terminal size bug with the fancy tqdm display:
-     * the best would be to check if it's big enough before starting training and adjust size if needed
-     * the cursor should be placed automatically at the end to avoid ugly collision
-     -> Since the above solution seems impossible (or at least impossible to do on all OS an via SSH)
-     maybe we can try smg like adding a callback to clear terminal when receiving a signal.
-- fix validation accuracy computation issue
+- learning rate logging:
+     the tensorboard logger is correct.
+     the lr displayed in terminal is false: it's constant at the initial lr.
 
+- accuracy computation issue:
+     * solved by calculating our own accuracy.
+     * is calculated on CPU and not GPU: need to be changed in future releases.
 
 <!--
 +----------------------------------------------------------------------------------------------------+
@@ -121,10 +117,12 @@ Pytorch implementation of the [MicroNet Challenge](https://micronet-challenge.gi
 - improve README
 - improve terminal display:
      - table showing training logs
-     - clear terminal on training start:
-          on_training_start method in model.py
+     - make verbose a Lightning callback (see utils/verbose.py) instead of a decorator:
+       this callback is based on a State class that could be use somewhere else.
 - remove fastai dependancy:
      code loaded from fastai is now in pytorch
+- test in model and main:
+     for now it's only a duplicate of a validation routine on one epoch.
 
 
 <!--
@@ -184,6 +182,14 @@ Most useful ones:
 - ```--gpus n``` : runs the training on n gpus
 - ```--distributed_backend ddp``` : use DistributedDataParallel as backend to train across multiple gpus.
 - ```--fast_dev_run True``` : runs one training loop, that is one validation step, one test step, one training step on a single data batch. Used to debug efficiently. 
+
+If you want to debug but the fast_dev_run option doesn't suit (for instance if you wanna check what's happening between
+two epochs) you can run:
+
+- ```--limit_train_batches i --limit_val_batches j --max_epochs k```
+
+i,j,k are of course three integers of your choice.
+
 
 
 <!--

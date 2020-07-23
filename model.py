@@ -7,13 +7,10 @@ import os
 import numpy as np
 import torch
 from pytorch_lightning.core.lightning import LightningModule
-#from pytorch_lightning.metrics.functional import accuracy
-#from pytorch_lightning.metrics import Accuracy
 from utils.data import get_train_dataloader, get_val_dataloader
 from utils.model import DenseNet
 from utils.model.init import init_criterion, init_optimizer, init_scheduler
 from utils.model.layers import Cutmix
-#from utils.decorators import verbose, Verbose
 
 
 class LightningModel(LightningModule):
@@ -28,6 +25,10 @@ class LightningModel(LightningModule):
         Note that Lighning handles tensorboard logging, early stopping, and auto checkpoints
         for this class.
     """
+
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                      INIT                                         | #
+    # +-----------------------------------------------------------------------------------+ # 
 
     def __init__(self, config):
         """
@@ -45,12 +46,6 @@ class LightningModel(LightningModule):
         self.criterion   = init_criterion(self.config.model)
         self.save_hyperparameters()
 
-    def train_dataloader(self):
-        return get_train_dataloader(self.config.dataset, self.config.dataloader)
-
-    def val_dataloader(self):
-        return get_val_dataloader(self.config.dataset, self.config.dataloader)
-
     def configure_optimizers(self):
         optimizer = init_optimizer(self.net, self.config.optimizer)
         scheduler = init_scheduler(optimizer, self.config.scheduler)
@@ -58,6 +53,18 @@ class LightningModel(LightningModule):
 
     def forward(self, x):
         return self.net(x)
+
+    def accuracy(self, outputs, targets):
+        _, predicted = outputs.max(1)
+        total, correct = targets.size(0), predicted.eq(targets).sum().item()
+        return torch.as_tensor(correct/total)
+    
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                      TRAIN                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
+
+    def train_dataloader(self):
+        return get_train_dataloader(self.config.dataset, self.config.dataloader)
 
     def cutmix(self, inputs, targets):
         """ mix two inputs in a Cutout way """
@@ -80,34 +87,49 @@ class LightningModel(LightningModule):
         acc = self.accuracy(outputs, targets)
         return loss, acc, layers
 
-    def accuracy(self, outputs, targets):
-        _, predicted = outputs.max(1)
-        total, correct = targets.size(0), predicted.eq(targets).sum().item()
-        return torch.as_tensor(correct/total)
-
-    #@Verbose
     def training_step(self, batch, batch_idx):
         inputs, targets = batch
         loss, acc, _ = self.infere(inputs, targets) # third return values is layers for GKD
         lr = self.trainer.callbacks[0].lrs['lr-SGD'][0] # UGLY AS FUCK !! we need to do way better !
         return {'loss': loss, 'acc': acc, 'lr': lr}
-
-    #@Verbose
+    
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                        VAL                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
+    
+    def val_dataloader(self):
+        return get_val_dataloader(self.config.dataset, self.config.dataloader)
+    
     def validation_step(self, batch, batch_idx):
         inputs, targets = batch
         val_loss, val_acc, _ = self.infere(inputs, targets, train=False)
         return {'val_loss': val_loss, 'val_acc': val_acc}
 
-    #@Verbose
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_acc  = torch.stack([x['acc']  for x in outputs]).mean()
         log = {'loss': avg_loss, 'acc': avg_acc}
         return {'loss': avg_loss, 'log': log}
 
-    #@Verbose
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()
         log = {'val_loss': avg_loss, 'val_acc': avg_acc}
+        self.logger.log_metrics(log)
         return {'val_loss': avg_loss, 'log': log}
+
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                       TEST                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
+
+    #TODO: make it a proper test instead of a validation duplicate
+
+    def test_dataloader(self):
+        return get_val_dataloader(self.config.dataset, self.config.dataloader)
+
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+
+    def test_epoch_end(self, outputs):
+        return self.validation_epoch_end(outputs)
+

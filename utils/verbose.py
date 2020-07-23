@@ -1,11 +1,12 @@
-""" Decorators used by the LightningModel and the Trainer classes
-    Mostly logging and displaying handlers
+""" Verbose callback to be used by a Trainer object.
+    The whole idea of this file is to display a responsive table in terminal.
 """
 
 import os
 from dataclasses import dataclass
 from tqdm import tqdm
 from pytorch_lightning import Callback
+
 
 # +-------------------------------------------------------------------------------------+ #
 # |                                                                                     | #

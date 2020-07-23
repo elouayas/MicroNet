@@ -3,8 +3,8 @@
 import os
 from argparse import ArgumentParser
 from pytorch_lightning import Trainer
-from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import LearningRateLogger
+from pytorch_lightning.loggers import TensorBoardLogger
 from model import LightningModel
 from utils.verbose import VerboseCallback
 import config as cfg
@@ -25,7 +25,7 @@ def make_config():
 
 def init_model(config):
     """ config must be an instance of the Config dataclass from config.py """
-    return  LightningModel  (config)
+    return  LightningModel(config)
 
 
 def init_trainer():
@@ -47,6 +47,12 @@ def run_training():
     trainer.fit(model)
 
 
-if __name__ == '__main__':
-    run_training()
+def test(path):
+    model = LightningModel.load_from_checkpoint(path)
+    trainer = init_trainer()
+    trainer.test(model)
 
+
+if __name__ == '__main__':
+    #run_training()
+    test('lightning_logs/version_0/checkpoints/epoch=306.ckpt')
