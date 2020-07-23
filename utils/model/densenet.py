@@ -169,8 +169,6 @@ class DenseNet(nn.Module):
         "create a densenet model according to the name"
         num_classes = 10 if dataset == 'cifar10' else 100
         if   name == "densenet100":
-            return cls(num_classes = num_classes,
-                       depth = 100, growthRate = 12, compressionRate = 2)
+            return cls(num_classes = num_classes, depth = 100, growthRate = 12, compressionRate = 2)
         elif name == "densenet172":
-            return cls(num_classes = num_classes,
-                       depth = 172, growthRate = 30, compressionRate = 2)
+            return cls(num_classes = num_classes, depth = 172, growthRate = 30, compressionRate = 2)
