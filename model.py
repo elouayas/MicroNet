@@ -1,122 +1,135 @@
-import math
-from torch.nn import CrossEntropyLoss
-from torch.optim import SGD
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+""" Base Model Class: A Lighning Module
+    This class implements all the logic code.
+    This model class will be the one to be fit by a Trainer
+ """
+
+import os
+import numpy as np
 import torch
-
-from models import *
-
-from utils.binary_connect import BC
-from utils.label_smoothing import LabelSmoothingCrossEntropy
-from utils.optim.delayed_lr_scheduler import DelayedCosineAnnealingLR
-from utils.optim.ranger_lars import RangerLars
-from utils.decorators import timed
-from utils.mish import Mish
+from pytorch_lightning.core.lightning import LightningModule
+from utils.data import get_train_dataloader, get_val_dataloader
+from utils.model import DenseNet
+from utils.model.init import init_criterion, init_optimizer, init_scheduler
+from utils.model.layers import Cutmix
 
 
-""" 
-This class is basically nothing but instanciation. 
-Methods from model.py should never be called. 
-They are either called during instanciation or by method from a Trainer object.
-"""
+class LightningModel(LightningModule):
+    """
+        LightningModule handling everything training related.
+        Pytorch Lightning will be referred as Lightning in all the following.
+        Many attributes and method used aren't explicitely defined here
+        but comes from the LightningModule class.
+        This behavior should be specify in a docstring.
+        Please refer to the Lightning documentation for further details.
 
-class Model():
+        Note that Lighning handles tensorboard logging, early stopping, and auto checkpoints
+        for this class.
+    """
+
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                      INIT                                         | #
+    # +-----------------------------------------------------------------------------------+ # 
+
+    def __init__(self, config):
+        """
+            Config is a dataclass with 7 attributes.
+            Each of these attributes is itself a dataclass.
+            Please refer to config.py to see what they contain.
+            All this params are saved alltogether with the weights.
+            Hence one can load an already trained model and acces all its hyperparameters.
+            This call to save_hyperparameters() is handled by Lightning.
+            It makes something like self.hparams.dataloader.train_batch_size callable.
+        """
+        super().__init__()
+        self.config      = config
+        self.net         = DenseNet.from_name(self.config.dataset, self.config.model.net)
+        self.criterion   = init_criterion(self.config.model)
+        self.save_hyperparameters()
+
+    def configure_optimizers(self):
+        optimizer = init_optimizer(self.net, self.config.optimizer)
+        scheduler = init_scheduler(optimizer, self.config.scheduler)
+        return [optimizer], [scheduler]
+
+    def forward(self, x):
+        return self.net(x)
+
+    def accuracy(self, outputs, targets):
+        _, predicted = outputs.max(1)
+        total, correct = targets.size(0), predicted.eq(targets).sum().item()
+        return torch.as_tensor(correct/total)
     
-    @timed
-    def __init__(self, model_config, dataloader_config, dataset):
-        self.device     = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        self.mode       = model_config['mode']
-        self.summary    = {} # will contain dataset, net, optimizer, scheduler
-        self.net        = self._init_net(model_config, dataset)
-        self.update_activation_function(model_config)
-        self.criterion  = self._init_criterion(model_config)
-        self.optimizer  = self._init_optimizer()
-        self.scheduler  = self._init_scheduler()
-    
-    
-    def _init_net(self, model_config, dataset):
-        num_classes = 100 if dataset=='cifar100' else 10
-        if model_config['quantize']:
-            if model_config['net']=='wide_resnet_28_10':
-                net = WideResNet_28_10_Quantized(num_classes=num_classes)
-            else:
-                net = ResNet_Quantized(model_config['net'], num_classes=num_classes)
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                      TRAIN                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
+
+    def train_dataloader(self):
+        return get_train_dataloader(self.config.dataset, self.config.dataloader)
+
+    def cutmix(self, inputs, targets):
+        """ mix two inputs in a Cutout way """
+        lam, inputs, target_a, target_b = Cutmix(inputs, targets, self.config.train.cutmix_beta)
+        outputs, layers = self(inputs)
+        loss_a, loss_b  = self.criterion(outputs, target_a), self.criterion(outputs, target_b)
+        loss = loss_a * lam + loss_b * (1. - lam)
+        return outputs, layers, loss
+
+    def infere(self, inputs, targets, train=True):
+        """ infere on the giving inputs and compute the loss using targets
+            returns loss, acc, layers (layers is for GKD)
+        """
+        proba = np.random.rand(1)
+        if train and self.config.train.use_cutmix and proba < self.config.train.cutmix_p:
+            outputs, layers, loss = self.cutmix(inputs, targets)
         else:
-            if model_config['net']=='wide_resnet_28_10':
-                net = WideResNet_28_10(num_classes=num_classes)
-            elif model_config['net']=='efficientnetb0':
-                net = EfficientNetB0(num_classes=num_classes)
-            else:
-                net = ResNet(model_config['net'], num_classes=num_classes)
-        net = net.to(self.device)
-        if self.device == 'cuda':
-            net = nn.DataParallel(net)
-            cudnn.benchmark = True
-        self.summary['dataset'] = dataset
-        self.summary['net'] = model_config['net']
-        return net
-    
-    
-    def update_activation_function(self, model_config):
-        if model_config['activation'] == 'ReLU':
-            pass
-        else:
-            for name, module in self.net._modules.items():
-                if isinstance(module, nn.ReLU):
-                    self.net._modules[name] = Mish
-        
-                
-    def _init_criterion(self, model_config):
-        if model_config['label_smoothing']:
-            return LabelSmoothingCrossEntropy(smoothing=model_config['smoothing'], 
-                                              reduction=model_config['reduction'])
-        else:
-            return CrossEntropyLoss()
-        
-    
-    def _init_optimizer(self):
-        if self.mode == 'baseline':
-            optimizer = SGD(self.net.parameters(),
-                            lr           = 0.1,
-                            momentum     = 0.9,
-                            nesterov     = False,
-                            weight_decay = 5e-4)
-            self.summary['optimizer'] = 'SGD'
-        elif self.mode == 'boosted':
-            optimizer = RangerLars(self.net.parameters())
-            self.summary['optimizer'] = 'Ranger + LARS'
-        return optimizer
-    
-    
-    def _init_scheduler(self):
-        if self.mode == 'baseline':
-            scheduler = ReduceLROnPlateau(self.optimizer,
-                                          mode     = 'min',
-                                          factor   = 0.2,
-                                          patience = 20,
-                                          verbose  = True)
-            self.summary['scheduler'] = 'ROP'
-        elif self.mode == 'boosted':
-            scheduler = DelayedCosineAnnealingLR(self.optimizer, 100, 100)
-            self.summary['scheduler'] = 'Delayed Cosine Annealing'
-        return scheduler
-    
-    
-    # should be call only in train.py by the '_init_binary_connect' method. 
-    # likewise, '_init_binary_connect' should never be called explicitely. 
-    # The correct way to use this method is to modify
-    # the 'use_binary_connect' param of the train_config dict defined in config.py
-    def binary_connect(self, bits):
-        return BC(self.net)
-    
-    
+            outputs, layers = self(inputs) # second return value is layers for GKD
+            loss = self.criterion(outputs, targets)
+        acc = self.accuracy(outputs, targets)
+        return loss, acc, layers
 
+    def training_step(self, batch, batch_idx):
+        inputs, targets = batch
+        loss, acc, _ = self.infere(inputs, targets) # third return values is layers for GKD
+        lr = self.trainer.callbacks[0].lrs['lr-SGD'][0] # UGLY AS FUCK !! we need to do way better !
+        return {'loss': loss, 'acc': acc, 'lr': lr}
     
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                        VAL                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
     
+    def val_dataloader(self):
+        return get_val_dataloader(self.config.dataset, self.config.dataloader)
+    
+    def validation_step(self, batch, batch_idx):
+        inputs, targets = batch
+        val_loss, val_acc, _ = self.infere(inputs, targets, train=False)
+        return {'val_loss': val_loss, 'val_acc': val_acc}
 
-        
-        
-        
+    def training_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
+        avg_acc  = torch.stack([x['acc']  for x in outputs]).mean()
+        log = {'loss': avg_loss, 'acc': avg_acc}
+        return {'loss': avg_loss, 'log': log}
 
+    def validation_epoch_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_acc  = torch.stack([x['val_acc']  for x in outputs]).mean()
+        log = {'val_loss': avg_loss, 'val_acc': avg_acc}
+        self.logger.log_metrics(log)
+        return {'val_loss': avg_loss, 'log': log}
 
+    # +-----------------------------------------------------------------------------------+ #
+    # |                                       TEST                                        | #
+    # +-----------------------------------------------------------------------------------+ # 
+
+    #TODO: make it a proper test instead of a validation duplicate
+
+    def test_dataloader(self):
+        return get_val_dataloader(self.config.dataset, self.config.dataloader)
+
+    def test_step(self, batch, batch_idx):
+        return self.validation_step(batch, batch_idx)
+
+    def test_epoch_end(self, outputs):
+        return self.validation_epoch_end(outputs)
 
